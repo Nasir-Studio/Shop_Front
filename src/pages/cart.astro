@@ -53,6 +53,12 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
 <script is:inline>
   var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  var __cc = window.__currency;
+  function _fmt(ntd) {
+    if (ntd === 0) return '<span data-ntd="0">免費</span>';
+    if (__cc && __cc._rates) return __cc.format(ntd);
+    return '<span data-ntd="' + ntd + '">NT$' + (ntd || 0).toLocaleString() + '</span>';
+  }
   document.addEventListener('DOMContentLoaded', async function() {
     var token = localStorage.getItem('shop_token');
 
@@ -90,13 +96,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             '<div class="cart-item-image">' + imgHtml + '</div>' +
             '<div class="cart-item-info">' +
             '<a href="/products/' + item.product_slug + '/" class="cart-item-name">' + item.product_name + '</a>' +
-            '<div class="cart-item-price">NT$' + displayPrice.toLocaleString() + '</div>' +
+            '<div class="cart-item-price">' + _fmt(displayPrice) + '</div>' +
             '<div class="cart-item-qty">' +
             '<button class="qty-btn" onclick="updateQty(' + item.id + ',' + (item.quantity - 1) + ')">−</button>' +
             '<span class="qty-display">' + item.quantity + '</span>' +
             '<button class="qty-btn" onclick="updateQty(' + item.id + ',' + (item.quantity + 1) + ')">+</button>' +
             '</div></div>' +
-            '<div class="cart-item-subtotal"><span class="cart-item-subtotal-label">小計</span><span>NT$' + item.subtotal.toLocaleString() + '</span></div>' +
+            '<div class="cart-item-subtotal"><span class="cart-item-subtotal-label">小計</span><span>' + _fmt(item.subtotal) + '</span></div>' +
             '<button class="cart-item-remove" onclick="removeItem(' + item.id + ')" aria-label="移除">' +
             '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
             '</button></div>';
@@ -107,9 +113,10 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         document.getElementById('cart-summary').innerHTML =
           '<h3>訂單摘要</h3>' +
           '<div class="summary-row"><span>商品數量</span><span>' + cart.item_count + ' 件</span></div>' +
-          '<div class="summary-row"><span>運費</span><span>免運費</span></div>' +
+          '<div class="summary-row"><span>運費</span><span class="shipping-note">NT$75</span></div>' +
+          '<div class="summary-row" style="font-size:var(--text-xs);color:var(--c-text-light);margin-top:-4px;padding-left:var(--sp-4)"><span>(運費60 + 包材費15)</span></div>' +
           '<hr class="divider" />' +
-          '<div class="summary-row summary-total"><span>合計</span><span>NT$' + cart.total.toLocaleString() + '</span></div>' +
+          '<div class="summary-row summary-total"><span>合計</span><span>' + _fmt(cart.total + 75) + '</span></div>' +
           '<a href="/checkout/" class="btn btn-primary btn-block btn-lg" style="margin-top:var(--sp-6)">前往結帳</a>' +
           '<a href="/products/" class="btn btn-ghost btn-block" style="margin-top:var(--sp-2)">繼續選購</a>';
 

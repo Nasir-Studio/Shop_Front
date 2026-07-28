@@ -65,10 +65,164 @@ const {
     .auth-logged-in #user-dropdown { display: block !important; }
     .auth-logged-in #mobile-login-link { display: none !important; }
     .auth-logged-in #mobile-account-link { display: block !important; }
+    .auth-logged-in #mobile-orders-link { display: block !important; }
+    .auth-logged-in #mobile-logout-btn { display: block !important; }
     .auth-admin #admin-link { display: block !important; }
     .has-cart #cart-badge { display: flex !important; }
     .announcement-visible #announcement-banner { display: block; }
   </style>
+
+  <!-- ── Currency support ── -->
+  <script is:inline>
+    (function() {
+      window.__currency = {};
+
+      var STORAGE_KEY = 'shop_currency_code';
+      var RATES_KEY = 'shop_exchange_rates';
+      var RATES_TTL = 3600000; // 1 hour
+
+      var CURRENCIES = {
+        TWD: { symbol: 'NT$', label: '台幣', decimals: 0 },
+        USD: { symbol: '$',    label: '美元', decimals: 2 },
+        EUR: { symbol: '€',    label: '歐元', decimals: 2 },
+        JPY: { symbol: '¥',    label: '日圓', decimals: 0 },
+        CNY: { symbol: '¥',    label: '人民幣', decimals: 2 },
+        HKD: { symbol: 'HK$',  label: '港幣', decimals: 2 },
+        SGD: { symbol: 'S$',   label: '新加坡幣', decimals: 2 },
+        KRW: { symbol: '₩',    label: '韓圓', decimals: 0 },
+        GBP: { symbol: '£',    label: '英鎊', decimals: 2 },
+        AUD: { symbol: 'A$',   label: '澳幣', decimals: 2 },
+      };
+
+      var cc = window.__currency;
+      cc.currencies = CURRENCIES;
+      cc._code = localStorage.getItem(STORAGE_KEY) || 'TWD';
+      cc._rates = null;
+      cc._rateCallbacks = [];
+
+      cc.getCode = function() { return cc._code; };
+      cc.getInfo = function(code) { return CURRENCIES[code] || CURRENCIES.TWD; };
+      cc.getSymbol = function(code) { return cc.getInfo(code || cc._code).symbol; };
+      cc.getDecimals = function(code) { return cc.getInfo(code || cc._code).decimals; };
+
+      cc.convert = function(ntd, toCode) {
+        if (!toCode) toCode = cc._code;
+        if (toCode === 'TWD') return ntd;
+        var rate = cc._rates && cc._rates[toCode];
+        return rate ? ntd * rate : ntd;
+      };
+
+      cc.format = function(ntd, toCode) {
+        var code = toCode || cc._code;
+        var info = cc.getInfo(code);
+        var converted = cc.convert(ntd, code);
+        var formatted = converted.toLocaleString(undefined, {
+          minimumFractionDigits: info.decimals,
+          maximumFractionDigits: info.decimals,
+        });
+        var sym = info.symbol;
+        if (code === 'JPY' || code === 'CNY' || code === 'KRW') return sym + formatted;
+        return sym + ' ' + formatted;
+      };
+
+      cc.setCurrency = function(code) {
+        if (!CURRENCIES[code]) return;
+        cc._code = code;
+        try { localStorage.setItem(STORAGE_KEY, code); } catch(e) {}
+        document.documentElement.setAttribute('data-currency', code);
+        // Re-convert visible prices
+        cc.applyPrices();
+      };
+
+      cc.applyPrices = function() {
+        document.querySelectorAll('[data-ntd]').forEach(function(el) {
+          var ntd = parseFloat(el.getAttribute('data-ntd'));
+          if (!isNaN(ntd)) {
+            var text = cc.format(ntd);
+            if (el.tagName === 'INPUT') {
+              el.value = text;
+            } else {
+              el.textContent = text;
+            }
+          }
+        });
+      };
+
+      cc._loadRates = function(callback) {
+        cc._rateCallbacks.push(callback || function(){});
+        if (cc._loading) return;
+        cc._loading = true;
+
+        var cached = null;
+        try {
+          var raw = localStorage.getItem(RATES_KEY);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed.ts && Date.now() - parsed.ts < RATES_TTL) {
+              cached = parsed.rates;
+            }
+          }
+        } catch(e) {}
+
+        if (cached) {
+          cc._rates = cached;
+          cc._loading = false;
+          var cbs = cc._rateCallbacks;
+          cc._rateCallbacks = [];
+          cbs.forEach(function(fn) { try { fn(); } catch(e) {} });
+          return;
+        }
+
+        var script = document.createElement('script');
+        script.src = 'https://open.er-api.com/v6/latest/TWD?callback=__currency_cb';
+        var timeout = setTimeout(function() {
+          // Fallback: use hardcoded approximate rates
+          cc._rates = { USD: 0.031, EUR: 0.028, JPY: 4.75, CNY: 0.22, HKD: 0.24, SGD: 0.041, KRW: 40.5, GBP: 0.024, AUD: 0.046 };
+          cc._loading = false;
+          var cbs = cc._rateCallbacks;
+          cc._rateCallbacks = [];
+          cbs.forEach(function(fn) { try { fn(); } catch(e) {} });
+        }, 5000);
+
+        window.__currency_cb = function(data) {
+          clearTimeout(timeout);
+          if (data && data.rates) {
+            cc._rates = data.rates;
+            try {
+              localStorage.setItem(RATES_KEY, JSON.stringify({ rates: data.rates, ts: Date.now() }));
+            } catch(e) {}
+          } else {
+            cc._rates = { USD: 0.031, EUR: 0.028, JPY: 4.75, CNY: 0.22, HKD: 0.24, SGD: 0.041, KRW: 40.5, GBP: 0.024, AUD: 0.046 };
+          }
+          cc._loading = false;
+          var cbs = cc._rateCallbacks;
+          cc._rateCallbacks = [];
+          cbs.forEach(function(fn) { try { fn(); } catch(e) {} });
+          delete window.__currency_cb;
+        };
+        document.head.appendChild(script);
+      };
+
+      cc.ready = function(callback) {
+        if (cc._rates) {
+          setTimeout(callback, 0);
+          return;
+        }
+        cc._loadRates(callback);
+      };
+
+      // Init: restore currency attribute and attempt rate load
+      document.documentElement.setAttribute('data-currency', cc._code);
+      cc._loadRates();
+
+      // After DOM ready, apply prices to [data-ntd] elements
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { cc.ready(cc.applyPrices); });
+      } else {
+        cc.ready(cc.applyPrices);
+      }
+    })();
+  </script>
 
   <script is:inline>
     // ── Anti-debug: prevent console, debugger, and devtools ──

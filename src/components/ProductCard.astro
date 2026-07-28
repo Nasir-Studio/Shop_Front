@@ -27,18 +27,20 @@ const hasDiscount = sale_price !== null && sale_price < price;
       </div>
     )}
     {hasDiscount && <span class="product-sale-badge">SALE</span>}
+    <span class="product-secondhand-badge">二手</span>
   </div>
   <div class="product-info">
     {category_name && <span class="product-category">{category_name}</span>}
     <h3 class="product-name">{name}</h3>
     <div class="product-pricing">
-      <span class="product-price">
+      <span class="product-price" data-ntd={displayPrice}>
         {displayPrice === 0 ? '免費' : `NT$${Math.round(displayPrice).toLocaleString()}`}
       </span>
       {hasDiscount && (
-        <span class="product-original-price">NT$${Math.round(price).toLocaleString()}</span>
+        <span class="product-original-price" data-ntd={price}>NT$${Math.round(price).toLocaleString()}</span>
       )}
     </div>
+    <div class="product-secondhand-note">所有商品皆為二手，請確認狀況後索取</div>
   </div>
 </a>
 
@@ -89,6 +91,20 @@ const hasDiscount = sale_price !== null && sale_price < price;
     color: var(--c-text-inverse);
   }
 
+  .product-secondhand-badge {
+    position: absolute;
+    bottom: var(--sp-3);
+    right: var(--sp-3);
+    padding: 2px var(--sp-2);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: #fefce8;
+    color: #a16207;
+    border: 1px solid #fde68a;
+    border-radius: 2px;
+  }
+
   .product-info {
     padding: var(--sp-4) var(--sp-2);
   }
@@ -121,6 +137,13 @@ const hasDiscount = sale_price !== null && sale_price < price;
   .product-price {
     font-size: var(--text-sm);
     font-weight: 500;
+  }
+
+  .product-secondhand-note {
+    font-size: 10px;
+    color: var(--c-text-light);
+    margin-top: var(--sp-2);
+    line-height: 1.3;
   }
 
   .product-original-price {

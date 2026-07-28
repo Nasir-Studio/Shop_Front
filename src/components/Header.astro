@@ -36,21 +36,34 @@
         <span class="cart-badge" id="cart-badge" style="display:none">0</span>
       </a>
 
+      <div class="currency-selector" id="currency-selector">
+        <button class="currency-btn" id="currency-btn">
+          <span id="currency-btn-label">NT$</span>
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="currency-menu" id="currency-menu">
+          <div class="currency-menu-header">選擇貨幣</div>
+          <div id="currency-options"></div>
+        </div>
+      </div>
+
       <div id="user-menu-container">
         <a href="/login" class="btn btn-sm btn-secondary" id="login-btn">登入</a>
         <div id="user-dropdown" style="display:none" class="user-dropdown">
-          <button id="user-btn" class="icon-btn user-btn">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+          <button id="user-btn" class="user-avatar-btn">
+            <span id="user-avatar-initial" class="user-avatar-initial"></span>
           </button>
           <div class="dropdown-menu" id="user-dropdown-menu">
-            <a href="/account" class="dropdown-item">我的帳號</a>
-            <a href="/account" class="dropdown-item">我的訂單</a>
+            <div class="dropdown-user-info" id="dropdown-user-info">
+              <span class="dropdown-user-name" id="dropdown-user-name"></span>
+              <span class="dropdown-user-email" id="dropdown-user-email"></span>
+            </div>
+            <hr class="divider" style="margin:4px 0" />
+            <a href="/account" class="dropdown-item">個人資料</a>
+            <a href="/account/?tab=orders" class="dropdown-item">訂單紀錄</a>
             <a href="#" class="dropdown-item" id="admin-link" style="display:none">管理後台</a>
             <hr class="divider" style="margin:4px 0" />
-            <button class="dropdown-item" id="logout-btn">登出</button>
+            <button class="dropdown-item logout-item" id="logout-btn">登出</button>
           </div>
         </div>
       </div>
@@ -71,6 +84,8 @@
     <a href="/cart" class="mobile-nav-link">購物車</a>
     <a href="/login" class="mobile-nav-link" id="mobile-login-link">登入</a>
     <a href="/account" class="mobile-nav-link" id="mobile-account-link" style="display:none">我的帳號</a>
+    <a href="/account/?tab=orders" class="mobile-nav-link" id="mobile-orders-link" style="display:none">訂單紀錄</a>
+    <button class="mobile-nav-link mobile-logout-btn" id="mobile-logout-btn" style="display:none">登出</button>
   </div>
 </header>
 
@@ -96,6 +111,21 @@
     var count = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
     if (badge && count > 0) { badge.textContent = String(count); }
 
+    // ── User avatar initial ──
+    var userStr = localStorage.getItem('shop_user');
+    if (userStr) {
+      try {
+        var userData = JSON.parse(userStr);
+        var initial = (userData.name || userData.email || '?').charAt(0).toUpperCase();
+        var avatarEl = document.getElementById('user-avatar-initial');
+        if (avatarEl) avatarEl.textContent = initial;
+        var nameEl = document.getElementById('dropdown-user-name');
+        var emailEl = document.getElementById('dropdown-user-email');
+        if (nameEl) nameEl.textContent = userData.name || '';
+        if (emailEl) emailEl.textContent = userData.email || '';
+      } catch(e) {}
+    }
+
     // Dropdown toggle
     if (userBtn && dropdownMenu) {
       userBtn.addEventListener('click', function(e) {
@@ -107,12 +137,74 @@
       });
     }
 
-    // Logout
+    // ── Currency selector ──
+    var cc = window.__currency;
+    if (cc) {
+      var currencyBtn = document.getElementById('currency-btn');
+      var currencyMenu = document.getElementById('currency-menu');
+      var currencyOptions = document.getElementById('currency-options');
+      var currencyLabel = document.getElementById('currency-btn-label');
+
+      // Render options
+      if (currencyOptions) {
+        var codes = Object.keys(cc.currencies);
+        var activeCode = cc.getCode();
+        currencyOptions.innerHTML = codes.map(function(code) {
+          var info = cc.currencies[code];
+          var active = code === activeCode ? ' active' : '';
+          return '<button class="currency-option' + active + '" data-currency="' + code + '">' +
+            '<span class="currency-option-sym">' + info.symbol + '</span>' +
+            '<span class="currency-option-label">' + info.label + '</span>' +
+            '<span class="currency-option-check">' + (active ? '✓' : '') + '</span>' +
+            '</button>';
+        }).join('');
+
+        // Click handler
+        currencyOptions.addEventListener('click', function(e) {
+          var btn = e.target.closest('.currency-option');
+          if (!btn) return;
+          var code = btn.getAttribute('data-currency');
+          if (code && code !== cc.getCode()) {
+            cc.setCurrency(code);
+            window.location.reload();
+          } else {
+            currencyMenu.classList.remove('show');
+          }
+        });
+      }
+
+      // Update label
+      if (currencyLabel) {
+        currencyLabel.textContent = cc.getSymbol() + (cc.getCode() !== 'TWD' ? ' ' + cc.getCode() : '');
+      }
+
+      // Toggle dropdown
+      if (currencyBtn && currencyMenu) {
+        currencyBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          currencyMenu.classList.toggle('show');
+        });
+        document.addEventListener('click', function() {
+          currencyMenu.classList.remove('show');
+        });
+      }
+    }
+
+    // ── Thorough logout ──
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function() {
-        localStorage.removeItem('shop_token');
-        localStorage.removeItem('shop_user');
-        localStorage.removeItem('shop_cart_count');
+        // Clear all shop-related localStorage items
+        var keysToRemove = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var key = localStorage.key(i);
+          if (key && key.startsWith('shop_')) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(function(k) { localStorage.removeItem(k); });
+        // Clear session storage too
+        sessionStorage.clear();
+        // Redirect to home
         window.location.href = '/';
       });
     }
@@ -123,6 +215,19 @@
     if (mobileMenuBtn && mobileNav) {
       mobileMenuBtn.addEventListener('click', function() {
         mobileNav.classList.toggle('show');
+      });
+    }
+
+    // Mobile logout
+    var mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+    if (mobileLogoutBtn) {
+      mobileLogoutBtn.addEventListener('click', function() {
+        for (var i = 0; i < localStorage.length; i++) {
+          var key = localStorage.key(i);
+          if (key && key.startsWith('shop_')) localStorage.removeItem(key);
+        }
+        sessionStorage.clear();
+        window.location.href = '/';
       });
     }
 
@@ -251,20 +356,104 @@
     justify-content: center;
   }
 
-  .user-dropdown {
-    position: relative;
+  /* ── Currency selector ── */
+  .currency-selector { position: relative; }
+  .currency-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 36px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    background: var(--c-bg);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    color: var(--c-text);
+    transition: all var(--duration) var(--ease);
+    white-space: nowrap;
   }
-
-  .dropdown-menu {
+  .currency-btn:hover { border-color: var(--c-text); }
+  .currency-menu {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 6px);
     right: 0;
-    margin-top: var(--sp-2);
     background: var(--c-bg);
     border: 1px solid var(--c-border);
     border-radius: var(--radius);
     box-shadow: var(--shadow-lg);
-    min-width: 160px;
+    min-width: 150px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: all var(--duration) var(--ease);
+    z-index: 110;
+  }
+  .currency-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
+  .currency-menu-header {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--text-xs);
+    color: var(--c-text-light);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .currency-option {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    text-align: left;
+    transition: background var(--duration) var(--ease);
+  }
+  .currency-option:hover { background: var(--c-bg-alt); color: var(--c-text); }
+  .currency-option.active { color: var(--c-text); font-weight: 500; }
+  .currency-option-sym { width: 24px; text-align: center; flex-shrink: 0; }
+  .currency-option-label { flex: 1; }
+  .currency-option-check { width: 16px; text-align: center; font-size: 11px; color: var(--c-bg-dark); }
+
+  .user-dropdown {
+    position: relative;
+  }
+
+  /* ── Circle avatar button ── */
+  .user-avatar-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--c-border);
+    background: var(--c-bg-dark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration) var(--ease);
+    padding: 0;
+  }
+  .user-avatar-btn:hover {
+    border-color: var(--c-text);
+    background: #333;
+  }
+  .user-avatar-initial {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-text-inverse);
+    line-height: 1;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--c-bg);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 180px;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-4px);
@@ -275,6 +464,23 @@
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+  }
+
+  .dropdown-user-info {
+    padding: var(--sp-3) var(--sp-4);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .dropdown-user-name {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--c-text);
+  }
+  .dropdown-user-email {
+    font-size: var(--text-xs);
+    color: var(--c-text-light);
+    word-break: break-all;
   }
 
   .dropdown-item {
@@ -292,6 +498,14 @@
   .dropdown-item:hover {
     color: var(--c-text);
     background: var(--c-bg-alt);
+  }
+
+  .logout-item {
+    color: var(--c-error);
+  }
+  .logout-item:hover {
+    color: #dc2626;
+    background: #fef2f2;
   }
 
   /* Mobile */
@@ -315,6 +529,7 @@
   }
 
   .mobile-nav-link:last-child { border-bottom: none; }
+  .mobile-logout-btn { color: var(--c-error) !important; font-size: var(--text-sm); text-align: left; width: 100%; }
 
   @media (max-width: 768px) {
     .hide-mobile { display: none !important; }

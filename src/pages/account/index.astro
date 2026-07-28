@@ -16,6 +16,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         <h1>我的帳號</h1>
       </div>
 
+      <div id="order-success-banner" class="success-banner" style="display:none"></div>
+
       <div id="account-not-logged" class="empty-state" style="display:none">
         <h3>請先登入</h3>
         <a href="/login/" class="btn btn-primary" style="margin-top:var(--sp-4)">登入</a>
@@ -64,119 +66,311 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   <Footer />
 </BaseLayout>
 
-  <script is:inline>
-  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
-  document.addEventListener('DOMContentLoaded', async function() {
-    var token = localStorage.getItem('shop_token');
-    var userStr = localStorage.getItem('shop_user');
-    var user = userStr ? JSON.parse(userStr) : null;
+<script is:inline>
+var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+var __cc = window.__currency;
+function _fmt(ntd) {
+  if (ntd === 0) return '<span data-ntd="0">免費</span>';
+  if (__cc && __cc._rates) return __cc.format(ntd);
+  return '<span data-ntd="' + ntd + '">NT$' + (ntd || 0).toLocaleString() + '</span>';
+}
+document.addEventListener('DOMContentLoaded', async function() {
+  var token = localStorage.getItem('shop_token');
+  var userStr = localStorage.getItem('shop_user');
+  var user = userStr ? JSON.parse(userStr) : null;
 
-    if (!token || !user) {
-      document.getElementById('account-not-logged').style.display = 'flex';
-      return;
-    }
+  if (!token || !user) {
+    document.getElementById('account-not-logged').style.display = 'flex';
+    return;
+  }
 
-    // ── Fill from localStorage FIRST, then show (no white flash) ──
-    document.getElementById('profile-name').value = user.name || '';
-    document.getElementById('profile-email').value = user.email || '';
-    document.getElementById('profile-phone').value = user.phone || '';
-    document.getElementById('profile-address').value = user.address || '';
+  // ── Fill from localStorage FIRST, then show (no white flash) ──
+  document.getElementById('profile-name').value = user.name || '';
+  document.getElementById('profile-email').value = user.email || '';
+  document.getElementById('profile-phone').value = user.phone || '';
+  document.getElementById('profile-address').value = user.address || '';
 
-    document.getElementById('account-content').style.display = 'grid';
+  document.getElementById('account-content').style.display = 'grid';
 
-    // ── Then fetch fresh profile from API in background ──
-    try {
-      var profileRes = await fetch(API_URL + '/api/auth/me', {
-        headers: { 'Authorization': 'Bearer ' + token },
-      });
-      if (profileRes.ok) {
-        user = await profileRes.json();
-        localStorage.setItem('shop_user', JSON.stringify(user));
-        document.getElementById('profile-name').value = user.name || '';
-        document.getElementById('profile-email').value = user.email || '';
-        document.getElementById('profile-phone').value = user.phone || '';
-        document.getElementById('profile-address').value = user.address || '';
-      }
-    } catch (e) {
-      // Silently use cached data — user already sees localStorage values
-    }
-
-    // Check for order success redirect
-    var urlParams = new URLSearchParams(window.location.search);
-    var orderId = urlParams.get('order_success');
-    if (orderId) {
-      alert('訂單 #' + orderId + ' 已建立成功！');
-      window.history.replaceState({}, '', '/account/');
-    }
-
-    // Tab switching
-    document.querySelectorAll('.account-nav-link').forEach(function(link) {
-      link.addEventListener('click', function(e) {
-        e.preventDefault();
-        document.querySelectorAll('.account-nav-link').forEach(function(l) { l.classList.remove('active'); });
-        link.classList.add('active');
-        document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
-        document.getElementById('tab-' + link.dataset.tab).style.display = 'block';
-
-        if (link.dataset.tab === 'orders') loadOrders();
-      });
+  // ── Then fetch fresh profile from API in background ──
+  try {
+    var profileRes = await fetch(API_URL + '/api/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token },
     });
+    if (profileRes.ok) {
+      user = await profileRes.json();
+      localStorage.setItem('shop_user', JSON.stringify(user));
+      document.getElementById('profile-name').value = user.name || '';
+      document.getElementById('profile-email').value = user.email || '';
+      document.getElementById('profile-phone').value = user.phone || '';
+      document.getElementById('profile-address').value = user.address || '';
+    }
+  } catch (e) {
+    // Silently use cached data
+  }
 
-    // Profile form
-    document.getElementById('profile-form').addEventListener('submit', async function(e) {
+  // ── Success banner ──
+  var urlParams = new URLSearchParams(window.location.search);
+  var orderId = urlParams.get('order_success');
+  if (orderId) {
+    var banner = document.getElementById('order-success-banner');
+    banner.innerHTML = '<span>訂單 #' + orderId + ' 已建立成功！</span><button id="banner-close" class="banner-close">&times;</button>';
+    banner.style.display = 'flex';
+    setTimeout(function() { banner.style.display = 'none'; }, 8000);
+    document.getElementById('banner-close').addEventListener('click', function() {
+      banner.style.display = 'none';
+    });
+    window.history.replaceState({}, '', '/account/');
+  }
+
+  // ── Tab from URL param ──
+  var tabParam = urlParams.get('tab');
+  if (tabParam === 'orders') {
+    document.querySelectorAll('.account-nav-link').forEach(function(l) { l.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
+    document.querySelector('.account-nav-link[data-tab="orders"]').classList.add('active');
+    document.getElementById('tab-orders').style.display = 'block';
+    setTimeout(loadOrders, 100);
+  }
+
+  // ── Tab switching ──
+  document.querySelectorAll('.account-nav-link').forEach(function(link) {
+    link.addEventListener('click', function(e) {
       e.preventDefault();
-      var formData = new FormData(e.target);
-      var msgEl = document.getElementById('profile-msg');
-      try {
-        var res = await fetch(API_URL + '/api/auth/me', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({
-            name: formData.get('name'),
-            phone: formData.get('phone'),
-            address: formData.get('address'),
-          }),
-        });
-        if (!res.ok) throw new Error('更新失敗');
-        var updated = await res.json();
-        localStorage.setItem('shop_user', JSON.stringify(updated));
-        msgEl.textContent = '個人資料已更新';
-        msgEl.className = 'profile-msg success';
-        msgEl.style.display = 'block';
-        setTimeout(function() { msgEl.style.display = 'none'; }, 3000);
-      } catch (err) {
-        var msg = (err instanceof TypeError) ? '目前網路出現狀況中，請稍後再試' : (err.message || '更新失敗');
-        msgEl.textContent = msg;
-        msgEl.className = 'profile-msg error';
-        msgEl.style.display = 'block';
-      }
+      document.querySelectorAll('.account-nav-link').forEach(function(l) { l.classList.remove('active'); });
+      link.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(function(p) { p.style.display = 'none'; });
+      document.getElementById('tab-' + link.dataset.tab).style.display = 'block';
+
+      if (link.dataset.tab === 'orders') loadOrders();
     });
+  });
 
-    // Load orders
-    async function loadOrders() {
-      var container = document.getElementById('orders-list');
-      try {
-        var res = await fetch(API_URL + '/api/orders', {
-          headers: { 'Authorization': 'Bearer ' + token },
-        });
-        if (!res.ok) throw new Error();
-        var orders = await res.json();
-
-        if (!orders.length) {
-          container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>還沒有任何訂單</p><a href="/products/" class="btn btn-primary" style="margin-top:var(--sp-4)">開始選購</a></div>';
-          return;
-        }
-
-        var statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
-        container.innerHTML = orders.map(function(o) {
-          var date = new Date(o.created_at).toLocaleDateString('zh-TW');
-          return '<div class="order-item"><div class="order-item-header"><span class="order-id">#' + o.id + '</span><span class="order-date">' + date + '</span></div><div class="order-item-body"><span class="order-items-count">' + o.item_count + ' 件商品</span><span class="order-status status-' + o.status + '">' + (statusMap[o.status] || o.status) + '</span></div><div class="order-item-footer"><span class="order-total">NT$' + o.total.toLocaleString() + '</span></div></div>';
-        }).join('');
-      } catch (e) {
-        container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">目前網路出現狀況中，請稍後再試</div>';
-      }
+  // ── Profile form ──
+  document.getElementById('profile-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var formData = new FormData(e.target);
+    var msgEl = document.getElementById('profile-msg');
+    try {
+      var res = await fetch(API_URL + '/api/auth/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          phone: formData.get('phone'),
+          address: formData.get('address'),
+        }),
+      });
+      if (!res.ok) throw new Error('更新失敗');
+      var updated = await res.json();
+      localStorage.setItem('shop_user', JSON.stringify(updated));
+      msgEl.textContent = '個人資料已更新';
+      msgEl.className = 'profile-msg success';
+      msgEl.style.display = 'block';
+      setTimeout(function() { msgEl.style.display = 'none'; }, 3000);
+    } catch (err) {
+      var msg = (err instanceof TypeError) ? '目前網路出現狀況中，請稍後再試' : (err.message || '更新失敗');
+      msgEl.textContent = msg;
+      msgEl.className = 'profile-msg error';
+      msgEl.style.display = 'block';
     }
   });
+
+  // ── Payment method labels ──
+  var paymentLabels = {
+    cash: '現金',
+    bank_transfer: '銀行轉帳',
+    line_pay: 'Line Pay',
+    crypto: '虛擬貨幣',
+  };
+
+  var shippingLabels = {
+    home_delivery: '宅配到府',
+    store_pickup: '超商取貨',
+  };
+
+  var storeTypeLabels = {
+    '7-11': '7-11',
+    family_mart: '全家 FamilyMart',
+  };
+
+  // ── Load orders ──
+  var expandedOrderId = null;
+
+  async function loadOrders() {
+    var container = document.getElementById('orders-list');
+    try {
+      var res = await fetch(API_URL + '/api/orders', {
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      if (!res.ok) throw new Error();
+      var orders = await res.json();
+
+      if (!orders.length) {
+        container.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>還沒有任何訂單</p><a href="/products/" class="btn btn-primary" style="margin-top:var(--sp-4)">開始選購</a></div>';
+        return;
+      }
+
+      var statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
+      container.innerHTML = orders.map(function(o) {
+        var date = new Date(o.created_at).toLocaleDateString('zh-TW');
+        var payLabel = paymentLabels[o.payment_method] || o.payment_method;
+        var shipLabel = shippingLabels[o.shipping_method] || '';
+        var storeInfo = '';
+        if (o.shipping_method === 'store_pickup' && o.store_name) {
+          var stLabel = storeTypeLabels[o.store_type] || o.store_type;
+          storeInfo = stLabel + ' ' + o.store_name;
+        }
+        var isExpanded = expandedOrderId === o.id;
+        return '<div class="order-item' + (isExpanded ? ' expanded' : '') + '" data-id="' + o.id + '">' +
+          '<div class="order-item-header">' +
+          '<span class="order-id">#' + o.id + '</span>' +
+          '<span class="order-date">' + date + '</span>' +
+          '</div>' +
+          '<div class="order-item-body">' +
+          '<span class="order-items-count">' + o.item_count + ' 件商品</span>' +
+          '<span class="order-status status-' + o.status + '">' + (statusMap[o.status] || o.status) + '</span>' +
+          '</div>' +
+          '<div class="order-item-meta">' +
+          '<span class="order-meta-pay">' + payLabel + '</span>' +
+          '<span class="order-meta-ship">' + (storeInfo || shipLabel) + '</span>' +
+          '</div>' +
+          '<div class="order-item-footer">' +
+          '<span class="order-total">' + _fmt(o.total) + '</span>' +
+          '<button class="order-detail-btn" onclick="toggleOrderDetail(' + o.id + ')">' + (isExpanded ? '收起詳情' : '查看詳情') + '</button>' +
+          '</div>' +
+          '<div class="order-detail" id="order-detail-' + o.id + '" style="' + (isExpanded ? 'display:block' : 'display:none') + '">' +
+          '<div class="detail-loading">載入中...</div>' +
+          '</div>' +
+          '</div>';
+      }).join('');
+
+      // If an order was previously expanded, load its detail
+      if (expandedOrderId) {
+        loadOrderDetail(expandedOrderId);
+      }
+    } catch (e) {
+      container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">目前網路出現狀況中，請稍後再試</div>';
+    }
+  }
+
+  window.toggleOrderDetail = function(orderId) {
+    var detailEl = document.getElementById('order-detail-' + orderId);
+    var parentItem = document.querySelector('.order-item[data-id="' + orderId + '"]');
+    var btn = parentItem ? parentItem.querySelector('.order-detail-btn') : null;
+
+    if (expandedOrderId === orderId) {
+      expandedOrderId = null;
+      detailEl.style.display = 'none';
+      if (parentItem) parentItem.classList.remove('expanded');
+      if (btn) btn.textContent = '查看詳情';
+    } else {
+      // Close previous
+      if (expandedOrderId) {
+        var prevDetail = document.getElementById('order-detail-' + expandedOrderId);
+        var prevItem = document.querySelector('.order-item[data-id="' + expandedOrderId + '"]');
+        var prevBtn = prevItem ? prevItem.querySelector('.order-detail-btn') : null;
+        if (prevDetail) prevDetail.style.display = 'none';
+        if (prevItem) prevItem.classList.remove('expanded');
+        if (prevBtn) prevBtn.textContent = '查看詳情';
+      }
+      expandedOrderId = orderId;
+      detailEl.style.display = 'block';
+      if (parentItem) parentItem.classList.add('expanded');
+      if (btn) btn.textContent = '收起詳情';
+      loadOrderDetail(orderId);
+    }
+  };
+
+  function loadOrderDetail(orderId) {
+    var detailEl = document.getElementById('order-detail-' + orderId);
+    detailEl.innerHTML = '<div class="detail-loading">載入中...</div>';
+    fetch(API_URL + '/api/orders/' + orderId, {
+      headers: { 'Authorization': 'Bearer ' + token },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(order) {
+      var payLabel = paymentLabels[order.payment_method] || order.payment_method;
+      var shipLabel = shippingLabels[order.shipping_method] || '';
+      var stLabel = storeTypeLabels[order.store_type] || order.store_type;
+      var statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
+      var statusOrder = ['pending', 'paid', 'shipped', 'completed'];
+      var currentIdx = statusOrder.indexOf(order.status);
+
+      var itemsHtml = order.items.map(function(item) {
+        var img = item.product_image
+          ? '<img src="' + item.product_image + '" alt="' + item.product_name + '" class="detail-item-img" />'
+          : '<div class="detail-item-img-placeholder"></div>';
+        return '<div class="detail-item">' +
+          img +
+          '<div class="detail-item-info">' +
+          '<span class="detail-item-name">' + item.product_name + '</span>' +
+          '<span class="detail-item-qty">x ' + item.quantity + '</span>' +
+          '</div>' +
+          '<span class="detail-item-price">' + _fmt(item.subtotal) + '</span>' +
+          '</div>';
+      }).join('');
+
+      var shippingHtml = '';
+      if (order.shipping_method === 'store_pickup' && order.store_name) {
+        shippingHtml =
+          '<div class="detail-section"><h4>超商取貨資訊</h4>' +
+          '<div class="detail-row"><span>門市</span><span>' + stLabel + ' ' + order.store_name + ' (' + order.store_code + ')</span></div>' +
+          '<div class="detail-row"><span>收件人</span><span>' + order.shipping_name + '</span></div>' +
+          '<div class="detail-row"><span>電話</span><span>' + order.shipping_phone + '</span></div>' +
+          '</div>';
+      } else {
+        shippingHtml =
+          '<div class="detail-section"><h4>宅配資訊</h4>' +
+          '<div class="detail-row"><span>收件人</span><span>' + order.shipping_name + '</span></div>' +
+          '<div class="detail-row"><span>電話</span><span>' + order.shipping_phone + '</span></div>' +
+          '<div class="detail-row"><span>地址</span><span>' + order.shipping_address + '</span></div>' +
+          '</div>';
+      }
+
+      var statusHtml = '<div class="detail-section"><h4>訂單狀態</h4><div class="status-steps">';
+      statusOrder.forEach(function(s, i) {
+        var label = statusMap[s];
+        var isActive = i <= currentIdx;
+        var isCancel = false;
+        statusHtml += '<div class="status-step' + (isActive ? ' active' : '') + '">' +
+          '<div class="step-dot"></div>' +
+          '<span class="step-label">' + label + '</span>' +
+          '</div>';
+        if (i < statusOrder.length - 1) {
+          statusHtml += '<div class="step-line' + (isActive ? ' active' : '') + '"></div>';
+        }
+      });
+      if (order.status === 'cancelled') {
+        statusHtml += '<div class="status-step cancelled"><div class="step-dot"></div><span class="step-label">已取消</span></div>';
+      }
+      statusHtml += '</div>';
+      if (order.cancel_reason) {
+        statusHtml += '<div class="cancel-reason">取消原因：' + order.cancel_reason + '</div>';
+      }
+      statusHtml += '</div>';
+
+      var noteHtml = order.note ? '<div class="detail-section"><h4>備註</h4><p class="detail-note">' + order.note + '</p></div>' : '';
+
+      detailEl.innerHTML =
+        '<div class="detail-inner">' +
+        '<div class="detail-section"><h4>商品明細</h4>' +
+        '<div class="detail-items">' + itemsHtml + '</div>' +
+        '<div class="detail-row"><span>商品小計</span><span>' + _fmt(order.total - (order.shipping_fee || 0)) + '</span></div>' +
+        '<div class="detail-row"><span>運費' + (order.shipping_fee ? ' <span style="font-size:var(--text-xs);color:var(--c-text-light)">(運費60 + 包材15)</span>' : '') + '</span><span>' + _fmt(order.shipping_fee || 0) + '</span></div>' +
+        '<div class="detail-total-row"><span>總計</span><span>' + _fmt(order.total) + '</span></div>' +
+        '</div>' +
+        statusHtml +
+        shippingHtml +
+        '<div class="detail-section"><h4>付款方式</h4><p class="detail-pay">' + payLabel + '</p></div>' +
+        noteHtml +
+        '</div>';
+    })
+    .catch(function() {
+      detailEl.innerHTML = '<div class="detail-loading error">載入失敗，請重新整理頁面</div>';
+    });
+  }
+});
 </script>
 
 <style>
@@ -192,21 +386,68 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .profile-msg { padding: var(--sp-3) var(--sp-4); font-size: var(--text-sm); border-radius: var(--radius); }
   .profile-msg.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
   .profile-msg.error { background: #fef2f2; border: 1px solid #fecaca; color: var(--c-error); }
+
+  /* Success banner */
+  .success-banner { display: none; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-5); background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius); color: #166534; font-size: var(--text-sm); margin-bottom: var(--sp-6); }
+  .banner-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #166534; padding: 0 0 0 var(--sp-3); opacity: 0.6; }
+  .banner-close:hover { opacity: 1; }
+
+  /* Order items */
   .order-item { padding: var(--sp-4) 0; border-bottom: 1px solid var(--c-border); }
+  .order-item.expanded { background: var(--c-bg-alt); margin: 0 calc(-1 * var(--sp-6)); padding-left: var(--sp-6); padding-right: var(--sp-6); border-radius: var(--radius); }
   .order-item-header { display: flex; justify-content: space-between; margin-bottom: var(--sp-2); }
   .order-id { font-weight: 500; font-size: var(--text-sm); }
   .order-date { font-size: var(--text-xs); color: var(--c-text-light); }
   .order-item-body { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--c-text-secondary); margin-bottom: var(--sp-2); }
-  .order-item-footer { display: flex; justify-content: flex-end; }
+  .order-item-meta { display: flex; gap: var(--sp-4); font-size: var(--text-xs); color: var(--c-text-light); margin-bottom: var(--sp-2); }
+  .order-item-footer { display: flex; justify-content: space-between; align-items: center; }
   .order-total { font-weight: 500; font-size: var(--text-sm); }
+  .order-detail-btn { font-size: var(--text-xs); color: var(--c-text-secondary); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0; }
+  .order-detail-btn:hover { color: var(--c-text); }
   .order-status { font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: var(--c-bg-alt); }
+
+  /* Order detail */
+  .order-detail { margin-top: var(--sp-4); border-top: 1px solid var(--c-border); padding-top: var(--sp-4); }
+  .detail-inner { display: flex; flex-direction: column; gap: var(--sp-5); }
+  .detail-section h4 { font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--sp-3); color: var(--c-text); }
+  .detail-items { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .detail-item { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--text-sm); }
+  .detail-item-img { width: 40px; height: 40px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--c-border); }
+  .detail-item-img-placeholder { width: 40px; height: 40px; background: var(--c-bg); border: 1px solid var(--c-border); border-radius: var(--radius); }
+  .detail-item-info { flex: 1; }
+  .detail-item-name { display: block; font-weight: 500; }
+  .detail-item-qty { display: block; font-size: var(--text-xs); color: var(--c-text-light); }
+  .detail-item-price { font-weight: 500; }
+  .detail-total-row { display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 500; padding-top: var(--sp-2); border-top: 1px solid var(--c-border); margin-top: var(--sp-2); }
+  .detail-row { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--c-text-secondary); padding: var(--sp-1) 0; }
+  .detail-row span:first-child { color: var(--c-text-light); }
+  .detail-pay { font-size: var(--text-sm); color: var(--c-text-secondary); }
+  .detail-note { font-size: var(--text-sm); color: var(--c-text-secondary); background: var(--c-bg); padding: var(--sp-3); border-radius: var(--radius); }
+  .detail-loading { text-align: center; padding: var(--sp-6); font-size: var(--text-sm); color: var(--c-text-light); }
+  .detail-loading.error { color: var(--c-error); }
+
+  /* Status steps */
+  .status-steps { display: flex; align-items: center; gap: 0; padding: var(--sp-3) 0; }
+  .status-step { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
+  .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-border); transition: background var(--duration) var(--ease); }
+  .status-step.active .step-dot { background: var(--c-bg-dark); }
+  .status-step.cancelled .step-dot { background: var(--c-error); }
+  .step-label { font-size: 10px; color: var(--c-text-light); white-space: nowrap; }
+  .status-step.active .step-label { color: var(--c-text); font-weight: 500; }
+  .status-step.cancelled .step-label { color: var(--c-error); }
+  .step-line { width: 24px; height: 1px; background: var(--c-border); margin-bottom: 18px; }
+  .step-line.active { background: var(--c-bg-dark); }
+  .cancel-reason { font-size: var(--text-xs); color: var(--c-error); margin-top: var(--sp-2); }
+
   .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--sp-16) 0; text-align: center; }
   .empty-state h3 { font-size: var(--text-lg); font-weight: 400; margin-top: var(--sp-4); }
   .empty-state p { color: var(--c-text-secondary); font-size: var(--text-sm); margin-top: var(--sp-2); }
+
   @media (max-width: 768px) {
     .account-layout { grid-template-columns: 1fr; }
     .account-nav { position: static; display: flex; gap: var(--sp-4); border-bottom: 1px solid var(--c-border); padding-bottom: var(--sp-4); }
     .account-nav-link { border-left: none; border-bottom: 2px solid transparent; padding: var(--sp-2) 0; }
     .account-nav-link.active { border-left-color: transparent; border-bottom-color: var(--c-text); }
+    .order-item.expanded { margin: 0 calc(-1 * var(--sp-4)); padding-left: var(--sp-4); padding-right: var(--sp-4); }
   }
 </style>

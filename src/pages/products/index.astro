@@ -2,10 +2,12 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+import LoadingScreen from '../../components/LoadingScreen.astro';
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="全部商品 — 小羊農場">
+  <LoadingScreen preloadSelector=".product-card img" />
   <Header />
 
   <main class="pt-header">
@@ -57,6 +59,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
 <script is:inline>
   var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  var __cc = window.__currency;
+  function _fmt(ntd) {
+    if (ntd === 0) return '<span data-ntd="0">免費</span>';
+    if (__cc && __cc._rates) return __cc.format(ntd);
+    return '<span data-ntd="' + ntd + '">NT$' + (ntd || 0).toLocaleString() + '</span>';
+  }
+
   document.addEventListener('DOMContentLoaded', async function() {
     var params = new URLSearchParams(window.location.search);
     var currentPage = parseInt(params.get('page') || '1');
@@ -64,23 +73,58 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     var currentSort = params.get('sort') || 'newest';
     var currentSearch = params.get('search') || '';
 
+    // ── Update URL without page reload ──
+    function updateUrl() {
+      var qs = new URLSearchParams();
+      if (currentPage > 1) qs.set('page', String(currentPage));
+      if (currentCategory) qs.set('category', currentCategory);
+      if (currentSort !== 'newest') qs.set('sort', currentSort);
+      if (currentSearch) qs.set('search', currentSearch);
+      var url = '/products' + (qs.toString() ? '?' + qs : '');
+      window.history.replaceState({ page: currentPage, category: currentCategory, sort: currentSort, search: currentSearch }, '', url);
+    }
+
+    // ── Subtle loading state (no full-screen animation) ──
+    function showGridLoading() {
+      var grid = document.getElementById('products-grid');
+      grid.style.opacity = '0.4';
+      grid.style.transition = 'opacity 0.15s ease';
+    }
+    function hideGridLoading() {
+      var grid = document.getElementById('products-grid');
+      grid.style.opacity = '1';
+    }
+
     async function loadCategories() {
       try {
         var res = await fetch(API_URL + '/api/categories');
         if (!res.ok) return;
         var cats = await res.json();
         var container = document.getElementById('category-filters');
-        var html = '<a href="/products' + (currentSort !== 'newest' ? '?sort=' + currentSort : '') + '" class="filter-link' + (!currentCategory ? ' active' : '') + '">全部</a>';
+        // "全部" link
+        var html = '<a href="#" class="filter-link' + (!currentCategory ? ' active' : '') + '" data-category="">全部</a>';
         cats.forEach(function(c) {
-          var sep = '?';
-          var parts = [];
-          if (currentSort !== 'newest') parts.push('sort=' + currentSort);
-          parts.push('category=' + c.slug);
-          sep += parts.join('&');
           var active = currentCategory === c.slug ? ' active' : '';
-          html += '<a href="/products' + sep + '" class="filter-link' + active + '">' + c.name + '</a>';
+          html += '<a href="#" class="filter-link' + active + '" data-category="' + c.slug + '">' + c.name + '</a>';
         });
         container.innerHTML = html;
+
+        // Attach click handlers for category links (AJAX)
+        container.querySelectorAll('.filter-link').forEach(function(link) {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var cat = link.getAttribute('data-category') || '';
+            if (cat === currentCategory) return;
+            currentCategory = cat;
+            currentPage = 1;
+            updateUrl();
+            // Update active state
+            container.querySelectorAll('.filter-link').forEach(function(l) { l.classList.remove('active'); });
+            link.classList.add('active');
+            showGridLoading();
+            loadProducts();
+          });
+        });
       } catch (e) {}
     }
 
@@ -100,26 +144,37 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         document.getElementById('product-count').textContent = '共 ' + data.total + ' 件商品';
 
         if (!data.items.length) {
-          grid.innerHTML = '<div class="text-center text-secondary" style="grid-column:1/-1;padding:var(--sp-16)"><p>暫無商品</p><a href="/products" class="btn btn-secondary" style="margin-top:var(--sp-4)">清除篩選</a></div>';
+          var emptyMsg = (currentCategory || currentSearch)
+            ? '<p>沒有符合條件的商品</p><a href="/products" class="btn btn-secondary" style="margin-top:var(--sp-4)">清除篩選</a>'
+            : '<p>目前還沒有商品喔！可能需要再等等 🐑</p>';
+          grid.innerHTML = '<div class="text-center text-secondary" style="grid-column:1/-1;padding:var(--sp-16)">' + emptyMsg + '</div>';
           document.getElementById('pagination').innerHTML = '';
+          hideGridLoading();
           return;
         }
 
         grid.innerHTML = data.items.map(function(p) {
           var priceHtml = p.sale_price
-            ? '<span style="font-weight:500">NT$' + p.sale_price.toLocaleString() + '</span><span style="text-decoration:line-through;color:var(--c-text-light);font-size:var(--text-xs);margin-left:4px">NT$' + p.price.toLocaleString() + '</span>'
-            : '<span style="font-weight:500">' + (p.price === 0 ? '免費' : 'NT$' + p.price.toLocaleString()) + '</span>';
+            ? '<span style="font-weight:500">' + _fmt(p.sale_price) + '</span><span style="text-decoration:line-through;color:var(--c-text-light);font-size:var(--text-xs);margin-left:4px">' + _fmt(p.price) + '</span>'
+            : '<span style="font-weight:500">' + _fmt(p.price) + '</span>';
           var imgHtml = p.image_url
             ? '<img src="' + p.image_url + '" alt="' + p.name + '" style="width:100%;height:100%;object-fit:cover" />'
             : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
           return '<a href="/products/' + p.slug + '/" class="product-card">' +
-            '<div class="product-image">' + imgHtml + '</div>' +
+            '<div class="product-image">' + imgHtml + '<span class="product-secondhand-badge">二手</span></div>' +
             '<div class="product-meta">' +
             (p.category_name ? '<span class="product-category">' + p.category_name + '</span>' : '') +
             '<h3 class="product-name">' + p.name + '</h3>' +
             '<div class="product-price">' + priceHtml + '</div>' +
+            '<div class="product-secondhand-note">所有商品皆為二手，請確認狀況後索取</div>' +
             '</div></a>';
         }).join('');
+
+        // Tell loading screen to preload these images
+        if (window.__loadingPreload) {
+          var urls = data.items.filter(function(p) { return p.image_url; }).map(function(p) { return p.image_url; });
+          window.__loadingPreload(urls);
+        }
 
         var paginationHtml = '';
         if (data.pages > 1) {
@@ -128,38 +183,56 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           paginationHtml += '<button class="btn btn-secondary btn-sm"' + (currentPage >= data.pages ? ' disabled' : '') + ' onclick="goPage(' + (currentPage + 1) + ')">下一頁 →</button>';
         }
         document.getElementById('pagination').innerHTML = paginationHtml;
+        hideGridLoading();
       } catch (e) {
         grid.innerHTML = '<div class="text-center text-secondary" style="grid-column:1/-1;padding:var(--sp-16)">目前網路出現狀況中，請稍後再試</div>';
+        hideGridLoading();
       }
     }
 
+    // ── Pagination: AJAX ──
     window.goPage = function(page) {
-      var qs = new URLSearchParams();
-      qs.set('page', String(page));
-      if (currentCategory) qs.set('category', currentCategory);
-      if (currentSort !== 'newest') qs.set('sort', currentSort);
-      window.location.href = '/products?' + qs;
+      if (page < 1) return;
+      currentPage = page;
+      updateUrl();
+      showGridLoading();
+      loadProducts();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // ── Sort links: AJAX ──
     document.querySelectorAll('#sort-filters .filter-link').forEach(function(link) {
       link.addEventListener('click', function(e) {
         e.preventDefault();
         var sort = link.dataset.sort;
-        var qs = new URLSearchParams();
-        qs.set('sort', sort);
-        if (currentCategory) qs.set('category', currentCategory);
-        window.location.href = '/products?' + qs;
+        if (sort === currentSort) return;
+        currentSort = sort;
+        currentPage = 1;
+        updateUrl();
+        // Update active state
+        document.querySelectorAll('#sort-filters .filter-link').forEach(function(l) { l.classList.remove('active'); });
+        link.classList.add('active');
+        showGridLoading();
+        loadProducts();
       });
     });
 
+    // ── Mobile sort: AJAX ──
     var mobileSort = document.getElementById('mobile-sort');
     if (mobileSort) {
       mobileSort.value = currentSort;
       mobileSort.addEventListener('change', function() {
-        var qs = new URLSearchParams();
-        qs.set('sort', this.value);
-        if (currentCategory) qs.set('category', currentCategory);
-        window.location.href = '/products?' + qs;
+        var sort = this.value;
+        if (sort === currentSort) return;
+        currentSort = sort;
+        currentPage = 1;
+        updateUrl();
+        // Sync desktop sort active state
+        document.querySelectorAll('#sort-filters .filter-link').forEach(function(l) {
+          l.classList.toggle('active', l.dataset.sort === sort);
+        });
+        showGridLoading();
+        loadProducts();
       });
     }
 
@@ -181,6 +254,27 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .filter-title { font-size: var(--text-xs); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-text-light); margin-bottom: var(--sp-3); }
   .filter-link { display: block; font-size: var(--text-sm); color: var(--c-text-secondary); padding: var(--sp-1) 0; transition: color var(--duration) var(--ease); }
   .filter-link:hover, .filter-link.active { color: var(--c-text); }
+  .product-secondhand-badge {
+    position: absolute;
+    bottom: var(--sp-3);
+    right: var(--sp-3);
+    padding: 2px var(--sp-2);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: #fefce8;
+    color: #a16207;
+    border: 1px solid #fde68a;
+    border-radius: 2px;
+  }
+
+  .product-secondhand-note {
+    font-size: 10px;
+    color: var(--c-text-light);
+    margin-top: var(--sp-2);
+    line-height: 1.3;
+  }
+
   .mobile-filters { margin-bottom: var(--sp-4); }
   .pagination { display: flex; align-items: center; justify-content: center; gap: var(--sp-4); margin-top: var(--sp-10); padding-top: var(--sp-8); border-top: 1px solid var(--c-border); }
   @media (max-width: 768px) { .products-layout { grid-template-columns: 1fr; gap: var(--sp-4); } }
