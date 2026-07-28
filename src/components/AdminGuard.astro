@@ -1,22 +1,36 @@
 ---
+// Blocking admin guard — place at TOP of <body> before any content
+// Immediately redirects/rewrites page for non-admin, blocking render
 ---
-
 <script is:inline>
-  window.__requireAdmin = function() {
+  (function() {
     var token = localStorage.getItem('shop_token');
     var userStr = localStorage.getItem('shop_user');
-    var user = userStr ? JSON.parse(userStr) : null;
-
-    if (!token || !user) {
+    if (!token || !userStr) {
       window.location.href = '/login';
-      return false;
+      return;
     }
-
-    if (user.email !== 'hi@nasirlin.net') {
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;text-align:center"><div><div style="font-size:72px;font-weight:300;color:#ddd;margin-bottom:16px">403</div><h1 style="font-size:20px;font-weight:400;margin-bottom:8px">Forbidden</h1><p style="color:#999;font-size:14px">你沒有權限訪問此頁面。</p><a href="/" style="display:inline-block;margin-top:24px;padding:8px 24px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-size:14px">回到首頁</a></div></div>';
-      return false;
+    try {
+      var user = JSON.parse(userStr);
+    } catch(e) {
+      window.location.href = '/login';
+      return;
     }
+    if (!user || user.email !== 'hi@nasirlin.net') {
+      document.open();
+      document.write('<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Forbidden — 小羊農場</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:"Noto Sans TC",sans-serif;background:#fafafa}div{text-align:center}h1{font-size:96px;font-weight:200;color:#ddd;margin:0 0 8px;line-height:1}p{color:#999;font-size:15px;margin:0 0 32px}a{display:inline-block;padding:10px 28px;background:#222;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;transition:opacity .2s}a:hover{opacity:.8}</style></head><body><div><h1>403</h1><p>你沒有權限訪問此頁面。</p><a href="/">回到首頁</a></div></body></html>');
+      document.close();
+      window.stop();
+    }
+  })();
+</script>
 
-    return true;
-  };
+<script is:inline>
+  // Also expose for secondary checks in dynamic content
+  window.__isAdmin = (function() {
+    try {
+      var u = JSON.parse(localStorage.getItem('shop_user') || '{}');
+      return !!(localStorage.getItem('shop_token') && u.email === 'hi@nasirlin.net');
+    } catch(e) { return false; }
+  })();
 </script>

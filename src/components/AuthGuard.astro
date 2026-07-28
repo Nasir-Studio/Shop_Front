@@ -1,0 +1,12 @@
+---
+// Blocking auth guard — place at TOP of <body> for any page requiring login
+// Immediately redirects unauthenticated users to /login
+---
+<script is:inline>
+  (function() {
+    var token = localStorage.getItem('shop_token');
+    if (!token) {
+      window.location.href = '/login';
+    }
+  })();
+</script>

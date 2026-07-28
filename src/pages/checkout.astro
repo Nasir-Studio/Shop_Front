@@ -2,10 +2,12 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import AuthGuard from '../components/AuthGuard.astro';
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="結帳 — 小羊農場">
+  <AuthGuard />
   <Header />
 
   <main class="pt-header">
