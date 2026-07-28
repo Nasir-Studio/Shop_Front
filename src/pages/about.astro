@@ -1,0 +1,89 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="關於我們 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="content-page">
+        <h1>關於小羊農場</h1>
+
+        <section>
+          <h2>我們的理念</h2>
+          <p><strong>「物品價值，淋漓盡致」</strong> — 這是小羊農場的核心精神。</p>
+          <p>每一件物品在生產過程中都耗費了地球的資源。我們相信，物品的價值不該因為不再被需要而被浪費。小羊農場提供一個讓物品能夠找到新主人的平台，讓資源得以循環，讓愛心得以傳遞。</p>
+        </section>
+
+        <section>
+          <h2>運作方式</h2>
+          <p>在小羊農場，所有商品皆以 <strong>0 元</strong> 分享。您可以在這裡找到其他人不再需要的物品，免費索取；也可以將自己用不到的物品分享出去，讓它發揮剩餘的價值。</p>
+          <p>如需寄送，僅需負擔 <strong>7-11 運費 $60</strong>，無任何隱藏費用。</p>
+        </section>
+
+        <section>
+          <h2>為什麼叫小羊農場？</h2>
+          <p>羊在傳統農業中是溫和、善良且與人親近的動物。我們希望這個平台能像農場一樣，充滿溫暖與信任，讓每一個來到這裡的人都能感受到分享的喜悅。</p>
+        </section>
+
+        <section>
+          <h2>聯絡我們</h2>
+          <p>如有任何問題或建議，歡迎來信：<a href="mailto:hi@nasirlin.net">hi@nasirlin.net</a></p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .content-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--sp-12) 0 var(--sp-20);
+  }
+
+  .content-page h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+    margin-bottom: var(--sp-10);
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .content-page section {
+    margin-bottom: var(--sp-8);
+  }
+
+  .content-page h2 {
+    font-size: var(--text-xl);
+    font-weight: 500;
+    margin-bottom: var(--sp-4);
+  }
+
+  .content-page p {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-3);
+  }
+
+  .content-page strong {
+    color: var(--c-text);
+    font-weight: 500;
+  }
+
+  .content-page a {
+    color: var(--c-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  @media (max-width: 768px) {
+    .content-page { padding: var(--sp-8) var(--sp-4) var(--sp-16); }
+  }
+</style>

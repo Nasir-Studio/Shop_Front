@@ -6,6 +6,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="登入 — 小羊農場">
+  <script is:inline>if(localStorage.getItem('shop_token'))window.location.replace('/');</script>
   <Header />
 
   <main class="pt-header">

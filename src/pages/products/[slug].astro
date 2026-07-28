@@ -34,7 +34,7 @@ export function getStaticPaths() {
       document.title = p.name + ' — 小羊農場';
 
       var imgHtml = p.image_url
-        ? '<img src="' + p.image_url + '" alt="' + p.name + '" />'
+        ? '<img src="' + p.image_url + '" alt="' + p.name + '" loading="lazy" />'
         : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
 
       var priceHtml = p.sale_price

@@ -25,11 +25,51 @@ const {
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#1a1a1a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   <meta name="apple-mobile-web-app-title" content="小羊農場" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- Sync auth state — runs before first paint, eliminates flicker -->
+  <script is:inline>
+    (function() {
+      var t = localStorage.getItem('shop_token');
+      if (t) {
+        document.documentElement.classList.add('auth-logged-in');
+        try {
+          var u = JSON.parse(localStorage.getItem('shop_user') || '{}');
+          if (u.role === 'admin') document.documentElement.classList.add('auth-admin');
+        } catch(e) {}
+      }
+      // Pre-load cart count for badge visibility
+      var c = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
+      if (c > 0) { document.documentElement.classList.add('has-cart'); }
+
+      // Announcement banner — show if never closed or 7 days have passed
+      var closeTs = localStorage.getItem('announcement_closed');
+      var WEEK = 7 * 24 * 60 * 60 * 1000;
+      if (!closeTs || (Date.now() - parseInt(closeTs) > WEEK)) {
+        document.documentElement.classList.add('announcement-visible');
+      }
+    })();
+  </script>
+
+  <!-- Critical visibility — applied before body renders, no flicker -->
+  <style>
+    #user-dropdown { display: none; }
+    #mobile-account-link { display: none; }
+    #announcement-banner { display: none; }
+    .auth-logged-in #login-btn { display: none !important; }
+    .auth-logged-in #user-dropdown { display: block !important; }
+    .auth-logged-in #mobile-login-link { display: none !important; }
+    .auth-logged-in #mobile-account-link { display: block !important; }
+    .auth-admin #admin-link { display: block !important; }
+    .has-cart #cart-badge { display: flex !important; }
+    .announcement-visible #announcement-banner { display: block; }
+  </style>
+
   <script is:inline>
     // ── Anti-debug: prevent console, debugger, and devtools ──
     (function() {
@@ -62,7 +102,6 @@ const {
           }
         };
         // Attempt to detect devtools on load
-        Object.defineProperty(window, '__defineGetter__', undefined);
         try {
           Object.defineProperty(document, 'domain', { get: function() { return 'shop.nsir.uk'; } });
         } catch(e) {}

@@ -1,0 +1,155 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="隱私權條款 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="content-page">
+        <h1>隱私權條款</h1>
+
+        <section>
+          <p>歡迎使用小羊農場（以下稱「本平台」）。為保障您的隱私權益，請詳閱以下隱私權條款。</p>
+        </section>
+
+        <section>
+          <h2>個人資料的收集</h2>
+          <p>在您使用本平台的過程中，我們可能收集以下個人資料：</p>
+          <ul>
+            <li>電子郵件地址</li>
+            <li>姓名與收件地址</li>
+            <li>電話號碼</li>
+            <li>訂單記錄與瀏覽行為</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>資料的使用方式</h2>
+          <p>我們收集的個人資料將用於：</p>
+          <ul>
+            <li>處理您的訂單與配送</li>
+            <li>帳號管理與驗證</li>
+            <li>平台營運與服務改善</li>
+            <li>依照法律規定進行的必要資料保存</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>資料保護</h2>
+          <p>我們採取合理的技術與管理措施來保護您的個人資料，包括但不限於：</p>
+          <ul>
+            <li>使用 HTTPS 加密傳輸</li>
+            <li>密碼經雜湊處理，不儲存明文</li>
+            <li>定期審查資料存取權限</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>資料分享</h2>
+          <p>除非經過您的同意或法律要求，我們不會將您的個人資料提供給第三方。僅在以下情況可能分享資料：</p>
+          <ul>
+            <li>配送商品所需之物流業者</li>
+            <li>依法律規定或司法機關要求</li>
+            <li>經您明確同意之用途</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>資料保留</h2>
+          <p>我們將在必要期間內保留您的個人資料。當帳號刪除或資料不再需要時，我們會安全地刪除或匿名化處理。</p>
+        </section>
+
+        <section>
+          <h2>Cookie 與追蹤技術</h2>
+          <p>本平台使用必要的 Cookie 以維持服務運作。我們不會使用第三方追蹤 Cookie 進行廣告投放。</p>
+        </section>
+
+        <section>
+          <h2>條款更新</h2>
+          <p>本隱私權條款可能隨時更新，更新後將於本頁面公告。繼續使用本平台即表示您同意更新後的條款。</p>
+        </section>
+
+        <section>
+          <h2>聯絡方式</h2>
+          <p>如對本隱私權條款有任何疑問，請來信至：<a href="mailto:hi@nasirlin.net">hi@nasirlin.net</a></p>
+        </section>
+
+        <p class="last-updated">最後更新：2026 年 7 月</p>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .content-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--sp-12) 0 var(--sp-20);
+  }
+
+  .content-page h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+    margin-bottom: var(--sp-10);
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .content-page section {
+    margin-bottom: var(--sp-8);
+  }
+
+  .content-page h2 {
+    font-size: var(--text-xl);
+    font-weight: 500;
+    margin-bottom: var(--sp-4);
+  }
+
+  .content-page p {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-3);
+  }
+
+  .content-page ul {
+    padding-left: var(--sp-6);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--c-text-secondary);
+  }
+
+  .content-page li {
+    margin-bottom: var(--sp-2);
+  }
+
+  .content-page strong {
+    color: var(--c-text);
+    font-weight: 500;
+  }
+
+  .content-page a {
+    color: var(--c-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .last-updated {
+    margin-top: var(--sp-12);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--c-border);
+    font-size: var(--text-xs);
+    color: var(--c-text-light);
+    text-align: center;
+  }
+
+  @media (max-width: 768px) {
+    .content-page { padding: var(--sp-8) var(--sp-4) var(--sp-16); }
+  }
+</style>

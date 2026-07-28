@@ -1,0 +1,118 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="購物須知 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="content-page">
+        <h1>購物須知</h1>
+
+        <section>
+          <h2>關於小羊農場</h2>
+          <p>小羊農場是一個以「物品價值，淋漓盡致」為理念的分享平台。我們鼓勵將不再需要的物品分享給有需要的人，讓每件物品都能發揮最大的價值。</p>
+        </section>
+
+        <section>
+          <h2>如何索取物品</h2>
+          <ol>
+            <li><strong>瀏覽商品</strong> — 在「全部商品」頁面瀏覽所有可索取的商品。</li>
+            <li><strong>加入購物車</strong> — 將感興趣的商品加入購物車。</li>
+            <li><strong>結帳</strong> — 填寫收件資訊並提交訂單。</li>
+            <li><strong>等待通知</strong> — 賣家確認後，商品將會出貨。</li>
+          </ol>
+        </section>
+
+        <section>
+          <h2>運費說明</h2>
+          <p>商品本身為 <strong>0 元</strong>，無需支付任何商品費用。</p>
+          <p>如需寄送，僅需負擔 <strong>7-11 運費 $60</strong>。<p>
+          <p>部分商品可能提供面交選項，請於商品頁面查看詳細資訊。</p>
+        </section>
+
+        <section>
+          <h2>訂單處理</h2>
+          <ul>
+            <li>訂單提交後，賣家將在 1-3 個工作天內確認。</li>
+            <li>確認後商品將透過 7-11 交貨便寄出。</li>
+            <li>請確保收件資訊填寫正確，若因資訊錯誤導致無法送達，買家需自行負擔重寄運費。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>取消訂單</h2>
+          <p>如需取消訂單，請在賣家確認前於「我的訂單」頁面取消。若訂單已確認出貨，請聯絡客服協助處理。</p>
+        </section>
+
+        <section>
+          <h2>注意事項</h2>
+          <ul>
+            <li>所有商品皆為二手物品，請確認商品狀況後再索取。</li>
+            <li>請勿隨意下單後不取貨，多次違規將限制使用權限。</li>
+            <li>如有任何問題，請透過「聯絡方式」與我們聯繫。</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .content-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: var(--sp-12) 0 var(--sp-20);
+  }
+
+  .content-page h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+    margin-bottom: var(--sp-10);
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .content-page section {
+    margin-bottom: var(--sp-10);
+  }
+
+  .content-page h2 {
+    font-size: var(--text-xl);
+    font-weight: 500;
+    margin-bottom: var(--sp-4);
+  }
+
+  .content-page p {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-3);
+  }
+
+  .content-page ul,
+  .content-page ol {
+    padding-left: var(--sp-6);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    color: var(--c-text-secondary);
+  }
+
+  .content-page li {
+    margin-bottom: var(--sp-2);
+  }
+
+  .content-page strong {
+    color: var(--c-text);
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .content-page { padding: var(--sp-8) var(--sp-4) var(--sp-16); }
+  }
+</style>

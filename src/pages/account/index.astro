@@ -64,7 +64,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   <Footer />
 </BaseLayout>
 
-<script is:inline>
+  <script is:inline>
   var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
   document.addEventListener('DOMContentLoaded', async function() {
     var token = localStorage.getItem('shop_token');
@@ -76,9 +76,15 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       return;
     }
 
+    // ── Fill from localStorage FIRST, then show (no white flash) ──
+    document.getElementById('profile-name').value = user.name || '';
+    document.getElementById('profile-email').value = user.email || '';
+    document.getElementById('profile-phone').value = user.phone || '';
+    document.getElementById('profile-address').value = user.address || '';
+
     document.getElementById('account-content').style.display = 'grid';
 
-    // Fetch fresh profile from API
+    // ── Then fetch fresh profile from API in background ──
     try {
       var profileRes = await fetch(API_URL + '/api/auth/me', {
         headers: { 'Authorization': 'Bearer ' + token },
@@ -86,15 +92,14 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       if (profileRes.ok) {
         user = await profileRes.json();
         localStorage.setItem('shop_user', JSON.stringify(user));
+        document.getElementById('profile-name').value = user.name || '';
+        document.getElementById('profile-email').value = user.email || '';
+        document.getElementById('profile-phone').value = user.phone || '';
+        document.getElementById('profile-address').value = user.address || '';
       }
     } catch (e) {
-      alert('目前網路出現狀況中，請稍後再試');
+      // Silently use cached data — user already sees localStorage values
     }
-
-    document.getElementById('profile-name').value = user.name || '';
-    document.getElementById('profile-email').value = user.email || '';
-    document.getElementById('profile-phone').value = user.phone || '';
-    document.getElementById('profile-address').value = user.address || '';
 
     // Check for order success redirect
     var urlParams = new URLSearchParams(window.location.search);
