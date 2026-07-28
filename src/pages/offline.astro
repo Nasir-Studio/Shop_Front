@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="離線中 — 小羊農場">
+  <main style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin-bottom:1.5rem;opacity:0.3">
+      <circle cx="32" cy="28" r="20" fill="#1a1a1a"/>
+      <ellipse cx="22" cy="24" rx="3" ry="4" fill="#fff"/>
+      <ellipse cx="42" cy="24" rx="3" ry="4" fill="#fff"/>
+      <circle cx="23" cy="24" r="1.5" fill="#1a1a1a"/>
+      <circle cx="43" cy="24" r="1.5" fill="#1a1a1a"/>
+      <ellipse cx="32" cy="32" rx="4" ry="2.5" fill="#666"/>
+      <circle cx="31" cy="31.5" r="1" fill="#1a1a1a"/>
+      <circle cx="33" cy="31.5" r="1" fill="#1a1a1a"/>
+    </svg>
+    <h1 style="font-weight:400;font-size:1.5rem;margin-bottom:0.5rem">目前離線</h1>
+    <p style="color:var(--c-text-secondary);max-width:320px">請檢查網路連線後再試。已快取的頁面仍可離線瀏覽。</p>
+    <a href="/" style="margin-top:1.5rem;padding:0.75rem 2rem;border:1px solid var(--c-border);border-radius:2px;font-size:0.875rem">回到首頁</a>
+  </main>
+</BaseLayout>

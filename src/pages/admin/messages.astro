@@ -1,0 +1,286 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import AdminGuard from '../../components/AdminGuard.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+---
+
+<BaseLayout title="訊息管理 — 小羊農場">
+  <AdminGuard />
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+        <a href="/admin/users" class="admin-nav-link">會員管理</a>
+        <a href="/admin/messages" class="admin-nav-link active">訊息管理</a>
+      </nav>
+
+      <div class="table-wrap">
+        <table id="messages-table">
+          <thead>
+            <tr>
+              <th style="width:60px">ID</th>
+              <th>寄件人</th>
+              <th>Email</th>
+              <th>主旨</th>
+              <th>狀態</th>
+              <th>日期</th>
+              <th style="width:100px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="messages-tbody">
+            <tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Reply Modal -->
+  <div id="reply-modal" class="modal-overlay" style="display:none">
+    <div class="modal" style="max-width:600px">
+      <div class="modal-header">
+        <h2>回覆訊息</h2>
+        <button class="modal-close" id="reply-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="msg-detail" id="msg-detail">
+          <div class="msg-field"><label>寄件人</label><span id="msg-name"></span></div>
+          <div class="msg-field"><label>Email</label><span id="msg-email"></span></div>
+          <div class="msg-field"><label>電話</label><span id="msg-phone"></span></div>
+          <div class="msg-field"><label>主旨</label><span id="msg-subject"></span></div>
+          <div class="msg-field"><label>內容</label><div id="msg-body" class="msg-body-text"></div></div>
+          <div class="msg-field" id="existing-reply-area" style="display:none">
+            <label>已回覆</label>
+            <div id="msg-existing-reply" class="msg-body-text" style="background:var(--c-bg-alt);padding:var(--sp-3)"></div>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top:var(--sp-4)">
+          <label class="form-label">回覆內容</label>
+          <textarea id="reply-text" class="input" rows="4" placeholder="輸入回覆內容..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="reply-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="reply-submit">送出回覆</button>
+      </div>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  var currentMsgId = null;
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.__requireAdmin()) return;
+    const token = localStorage.getItem('shop_token');
+
+    async function api(path, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+      if (opts.body && typeof opts.body === 'object') {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(opts.body);
+      }
+      const res = await fetch(API_URL + path, opts);
+      if (!res.ok) { const err = await res.json().catch(() => ({detail:'失敗'})); throw new Error(err.detail); }
+      return res.json();
+    }
+
+    function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function loadMessages() {
+      try {
+        const msgs = await api('/api/messages');
+        var tbody = document.getElementById('messages-tbody');
+        if (!msgs.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">尚無訊息</td></tr>';
+          return;
+        }
+        tbody.innerHTML = msgs.map(function(m) {
+          var date = new Date(m.created_at).toLocaleDateString('zh-TW');
+          var status = m.reply
+            ? '<span class="status"><span class="status-dot" style="background:var(--c-success)"></span>已回覆</span>'
+            : '<span class="status"><span class="status-dot" style="background:#e6a817"></span>待回覆</span>';
+          return '<tr>' +
+            '<td>' + m.id + '</td>' +
+            '<td>' + (m.name || m.email) + '</td>' +
+            '<td>' + m.email + '</td>' +
+            '<td>' + (m.subject || '-') + '</td>' +
+            '<td>' + status + '</td>' +
+            '<td>' + date + '</td>' +
+            '<td><button class="btn btn-ghost btn-sm" onclick="openReply(' + m.id + ')">' + (m.reply ? '檢視' : '回覆') + '</button></td>' +
+          '</tr>';
+        }).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    window.openReply = async function(id) {
+      currentMsgId = id;
+      try {
+        var m = await api('/api/messages/' + id);
+        document.getElementById('msg-name').textContent = m.name || '-';
+        document.getElementById('msg-email').textContent = m.email;
+        document.getElementById('msg-phone').textContent = m.phone || '-';
+        document.getElementById('msg-subject').textContent = m.subject || '-';
+        document.getElementById('msg-body').textContent = m.body;
+        document.getElementById('reply-text').value = '';
+
+        var existingArea = document.getElementById('existing-reply-area');
+        if (m.reply) {
+          existingArea.style.display = 'block';
+          document.getElementById('msg-existing-reply').textContent = m.reply;
+        } else {
+          existingArea.style.display = 'none';
+        }
+
+        showModal('reply-modal');
+      } catch (err) { alert('載入失敗'); }
+    };
+
+    document.getElementById('reply-modal-close').addEventListener('click', function() { hideModal('reply-modal'); });
+    document.getElementById('reply-cancel').addEventListener('click', function() { hideModal('reply-modal'); });
+
+    document.getElementById('reply-submit').addEventListener('click', async function() {
+      var reply = document.getElementById('reply-text').value.trim();
+      if (!reply) return alert('請輸入回覆內容');
+      try {
+        await api('/api/messages/' + currentMsgId + '/reply', { method: 'PUT', body: { reply: reply } });
+        hideModal('reply-modal');
+        loadMessages();
+      } catch (err) { alert('送出失敗：' + err.message); }
+    });
+
+    loadMessages();
+  });
+</script>
+
+<style>
+  .page-header {
+    padding: var(--sp-10) 0;
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+  .page-header h1 { font-size: var(--text-3xl); font-weight: 400; }
+  .admin-nav {
+    display: flex;
+    gap: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+    overflow-x: auto;
+  }
+  .admin-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease);
+    white-space: nowrap;
+  }
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active {
+    color: var(--c-text);
+    border-bottom-color: var(--c-text);
+    font-weight: 500;
+  }
+  .text-center { text-align: center; }
+
+  /* ── Modal ──────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 500;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: var(--sp-10) var(--sp-4);
+    overflow-y: auto;
+  }
+  .modal {
+    background: #fff;
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-5) var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .modal-header h2 { font-size: var(--text-lg); font-weight: 500; }
+  .modal-close {
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    font-size: 16px;
+    color: var(--c-text-secondary);
+    transition: all var(--duration) var(--ease);
+  }
+  .modal-close:hover { background: var(--c-bg-light); color: var(--c-text); }
+  .modal-body { padding: var(--sp-5) var(--sp-6); }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-6);
+    border-top: 1px solid var(--c-border);
+  }
+  .form-row { margin-bottom: var(--sp-4); }
+  .form-label {
+    display: block;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-1);
+  }
+  .input {
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    font-size: var(--text-base);
+    outline: none;
+    transition: border-color var(--duration) var(--ease);
+  }
+  .input:focus { border-color: var(--c-text); }
+
+  /* ── Message detail ─────────────────────────────────────────── */
+  .msg-field {
+    margin-bottom: var(--sp-3);
+  }
+  .msg-field label {
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--c-text-light);
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .msg-body-text {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    white-space: pre-wrap;
+  }
+</style>

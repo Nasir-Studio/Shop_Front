@@ -1,0 +1,134 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import AdminGuard from '../../components/AdminGuard.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+---
+
+<BaseLayout title="會員管理 — 小羊農場">
+  <AdminGuard />
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+        <a href="/admin/users" class="admin-nav-link active">會員管理</a>
+      </nav>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Email</th>
+              <th>名稱</th>
+              <th>角色</th>
+              <th>註冊日期</th>
+              <th>狀態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.__requireAdmin()) return;
+    const token = localStorage.getItem('shop_token');
+
+    async function loadUsers() {
+      try {
+        const res = await fetch(API_URL + '/api/admin/users', {
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!res.ok) throw new Error('Failed');
+        const users = await res.json();
+        var tbody = document.getElementById('users-tbody');
+        if (!users.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">尚無會員</td></tr>';
+          return;
+        }
+        tbody.innerHTML = users.map(function(u) {
+          var date = new Date(u.created_at).toLocaleDateString('zh-TW');
+          var roleLabel = u.role === 'admin' ? '<span class="badge badge-dark">管理員</span>' : '<span class="badge">會員</span>';
+          var activeLabel = u.is_active !== false ? '<span class="status"><span class="status-dot" style="background:var(--c-success)"></span>啟用</span>' : '<span class="status"><span class="status-dot" style="background:var(--c-text-light)"></span>停用</span>';
+          var actionBtn = u.role !== 'admin'
+            ? '<button class="btn btn-ghost btn-sm" onclick="toggleUser(' + u.id + ',' + (u.is_active !== false) + ')">' + (u.is_active !== false ? '停用' : '啟用') + '</button>'
+            : '-';
+          return '<tr>' +
+            '<td>' + u.id + '</td>' +
+            '<td>' + u.email + '</td>' +
+            '<td>' + (u.name || '-') + '</td>' +
+            '<td>' + roleLabel + '</td>' +
+            '<td>' + date + '</td>' +
+            '<td>' + activeLabel + '</td>' +
+            '<td>' + actionBtn + '</td>' +
+          '</tr>';
+        }).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    window.toggleUser = async function(id, isActive) {
+      if (!confirm((isActive ? '停用' : '啟用') + '此會員？')) return;
+      try {
+        var res = await fetch(API_URL + '/api/admin/users/' + id, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (!res.ok) throw new Error('Failed');
+        loadUsers();
+      } catch (err) { alert('操作失敗'); }
+    };
+
+    loadUsers();
+  });
+</script>
+
+<style>
+  .page-header {
+    padding: var(--sp-10) 0;
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+  .page-header h1 { font-size: var(--text-3xl); font-weight: 400; }
+  .admin-nav {
+    display: flex;
+    gap: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+    overflow-x: auto;
+  }
+  .admin-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease);
+    white-space: nowrap;
+  }
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active {
+    color: var(--c-text);
+    border-bottom-color: var(--c-text);
+    font-weight: 500;
+  }
+  .text-center { text-align: center; }
+</style>
