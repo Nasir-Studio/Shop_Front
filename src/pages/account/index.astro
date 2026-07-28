@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
       }
 
-      var statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
+      var statusMap = { pending: '訂單未付款', paid: '訂單已成立', shipped: '訂單待出貨', completed: '訂單已完成', cancelled: '已取消' };
       container.innerHTML = orders.map(function(o) {
         var date = new Date(o.created_at).toLocaleDateString('zh-TW');
         var payLabel = paymentLabels[o.payment_method] || o.payment_method;
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       var payLabel = paymentLabels[order.payment_method] || order.payment_method;
       var shipLabel = shippingLabels[order.shipping_method] || '';
       var stLabel = storeTypeLabels[order.store_type] || order.store_type;
-      var statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
+      var statusMap = { pending: '訂單未付款', paid: '訂單已成立', shipped: '訂單待出貨', completed: '訂單已完成', cancelled: '已取消' };
       var statusOrder = ['pending', 'paid', 'shipped', 'completed'];
       var currentIdx = statusOrder.indexOf(order.status);
 

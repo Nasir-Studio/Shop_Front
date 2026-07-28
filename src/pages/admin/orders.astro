@@ -50,20 +50,28 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
 <script is:inline>
   var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
-  const statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
-  const nextStatus = { pending: 'paid', paid: 'shipped', shipped: 'completed' };
+  const statusMap = { pending: '訂單未付款', paid: '訂單已成立', shipped: '訂單待出貨', completed: '訂單已完成', cancelled: '已取消' };
+  const statusList = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
 
   document.addEventListener('DOMContentLoaded', async function() {
     if (!window.__requireAdmin()) return;
     const token = localStorage.getItem('shop_token');
 
+    async function api(path, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+      if (opts.body && typeof opts.body === 'object') {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(opts.body);
+      }
+      const res = await fetch(API_URL + path, opts);
+      if (!res.ok) { const err = await res.json().catch(() => ({detail: '請求失敗'})); throw new Error(err.detail || '請求失敗'); }
+      return res.json();
+    }
+
     async function loadOrders() {
       try {
-        const res = await fetch(`${API_URL}/api/admin/orders`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Failed');
-        const orders = await res.json();
+        const orders = await api('/api/admin/orders');
         const tbody = document.getElementById('orders-tbody');
         if (!orders.length) {
           tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">尚無訂單</td></tr>';
@@ -71,9 +79,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         }
         tbody.innerHTML = orders.map(function(o) {
           const date = new Date(o.created_at).toLocaleDateString('zh-TW');
-          const actionBtn = nextStatus[o.status]
-            ? '<button class="btn btn-ghost btn-sm" onclick="advanceOrder(' + o.id + ',\'' + o.status + '\')">推進狀態</button>'
-            : '-';
           return '<tr>' +
             '<td>#' + o.id + '</td>' +
             '<td>' + o.user_email + '</td>' +
@@ -81,26 +86,82 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             '<td>NT$' + o.total.toLocaleString() + '</td>' +
             '<td><span class="status status-' + o.status + '"><span class="status-dot"></span>' + statusMap[o.status] + '</span></td>' +
             '<td>' + date + '</td>' +
-            '<td>' + actionBtn + '</td>' +
-            '</tr>';
+            '<td><button class="btn btn-ghost btn-sm" onclick="toggleDetail(' + o.id + ')">明細</button></td>' +
+            '</tr>' +
+            '<tr class="order-detail" id="detail-' + o.id + '" style="display:none">' +
+            '<td colspan="7">' +
+            '<div class="detail-body">' +
+              '<div class="detail-grid">' +
+                '<div class="detail-section">' +
+                  '<strong>收件資訊</strong>' +
+                  '<p>' + escHtml(o.shipping_name) + ' / ' + escHtml(o.shipping_phone || '') + '</p>' +
+                  (o.shipping_address ? '<p>' + escHtml(o.shipping_address) + '</p>' : '') +
+                  (o.shipping_method === 'store_pickup' ? '<p>超取：' + escHtml(o.store_name || '') + ' (' + escHtml(o.store_code || '') + ')</p>' : '') +
+                  '<p>付款方式：' + paymentLabel(o.payment_method) + '</p>' +
+                  '<p>運費：NT$' + (o.shipping_fee || 0).toLocaleString() + '</p>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                  '<strong>客戶備註</strong>' +
+                  '<p class="detail-note">' + escHtml(o.note || '無') + '</p>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                  '<strong>管理員備註</strong>' +
+                  '<textarea class="input admin-note-input" id="admin-note-' + o.id + '" rows="2">' + escHtml(o.admin_note || '') + '</textarea>' +
+                  '<button class="btn btn-ghost btn-sm" onclick="saveNote(' + o.id + ')">儲存備註</button>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                  '<strong>訂單狀態</strong>' +
+                  '<select class="input status-select" onchange="updateStatus(' + o.id + ', this.value)">' +
+                    statusList.map(function(s) {
+                      return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + statusMap[s] + '</option>';
+                    }).join('') +
+                  '</select>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '</td></tr>';
         }).join('');
       } catch (err) {
         console.error(err);
+        document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">載入失敗</td></tr>';
       }
     }
 
-    window.advanceOrder = async function(id, currentStatus) {
-      const newStatus = nextStatus[currentStatus];
-      if (!newStatus) return;
+    function escHtml(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function paymentLabel(m) {
+      var labels = { cash: '貨到付款', bank_transfer: '銀行轉帳', line_pay: 'Line Pay', crypto: '加密貨幣', paypal: 'PayPal' };
+      return labels[m] || m;
+    }
+
+    window.toggleDetail = function(id) {
+      var el = document.getElementById('detail-' + id);
+      if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+    };
+
+    window.updateStatus = async function(id, newStatus) {
       try {
-        await fetch(`${API_URL}/api/admin/orders/${id}/status`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ status: newStatus }),
-        });
+        await api('/api/admin/orders/' + id + '/status', { method: 'PUT', body: { status: newStatus } });
         loadOrders();
       } catch (err) {
-        alert('操作失敗');
+        alert('更新狀態失敗：' + err.message);
+        loadOrders(); // reload to reset dropdown
+      }
+    };
+
+    window.saveNote = async function(id) {
+      var textarea = document.getElementById('admin-note-' + id);
+      if (!textarea) return;
+      var note = textarea.value;
+      try {
+        await api('/api/admin/orders/' + id + '/note', { method: 'PUT', body: { admin_note: note } });
+        textarea.value = note;
+        alert('備註已儲存');
+      } catch (err) {
+        alert('儲存失敗：' + err.message);
       }
     };
 
@@ -143,4 +204,36 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   }
 
   .text-center { text-align: center; }
+
+  .order-detail { background: var(--c-bg-light); }
+  .order-detail td { padding: 0 !important; }
+  .detail-body { padding: var(--sp-5) var(--sp-6); }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-6);
+  }
+  .detail-section strong {
+    display: block;
+    font-size: var(--text-sm);
+    margin-bottom: var(--sp-2);
+    color: var(--c-text-secondary);
+  }
+  .detail-section p {
+    font-size: var(--text-sm);
+    margin: var(--sp-1) 0;
+  }
+  .detail-note {
+    background: #fff;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius);
+    border: 1px solid var(--c-border);
+    min-height: 2.5em;
+  }
+  .admin-note-input { width: 100%; margin-bottom: var(--sp-2); }
+  .status-select { width: 100%; }
+
+  @media (max-width: 768px) {
+    .detail-grid { grid-template-columns: 1fr; }
+  }
 </style>

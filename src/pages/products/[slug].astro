@@ -29,6 +29,13 @@ export function getStaticPaths() {
     if (__cc && __cc._rates) return __cc.format(ntd);
     return '<span data-ntd="' + ntd + '">NT$' + (ntd || 0).toLocaleString() + '</span>';
   }
+  window.switchMainImage = function(url, el) {
+    var wrap = document.getElementById('main-image-wrap');
+    if (wrap) wrap.innerHTML = '<img src="' + url + '" alt="" loading="lazy" />';
+    var items = document.querySelectorAll('.thumbnail-item');
+    items.forEach(function(i) { i.classList.remove('active'); });
+    if (el) el.classList.add('active');
+  };
   document.addEventListener('DOMContentLoaded', async function() {
     var slug = window.location.pathname.split('/').filter(Boolean).pop();
     var container = document.getElementById('product-container');
@@ -39,9 +46,34 @@ export function getStaticPaths() {
       var p = await res.json();
       document.title = p.name + ' — 小羊農場';
 
-      var imgHtml = p.image_url
-        ? '<img src="' + p.image_url + '" alt="' + p.name + '" loading="lazy" />'
-        : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+      var images = p.images || [];
+      // Find cover or use first
+      var coverIdx = -1;
+      for (var idx = 0; idx < images.length; idx++) {
+        if (images[idx].is_cover) { coverIdx = idx; break; }
+      }
+      if (coverIdx === -1 && images.length > 0) coverIdx = 0;
+
+      var mainImgUrl = coverIdx >= 0 ? images[coverIdx].image_url : (p.image_url || '');
+
+      function imgHtml(url, alt) {
+        return url
+          ? '<img src="' + url + '" alt="' + alt + '" loading="lazy" />'
+          : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
+      }
+
+      var thumbsHtml = '';
+      if (images.length > 1) {
+        thumbsHtml = '<div class="product-thumbnails">';
+        for (var idx = 0; idx < images.length; idx++) {
+          var im = images[idx];
+          thumbsHtml += '<div class="thumbnail-item' + (idx === coverIdx ? ' active' : '') + '" onclick="switchMainImage(\'' + im.image_url.replace(/'/g, "\\'") + '\', this)">' +
+            '<img src="' + im.image_url + '" alt="' + p.name + '" loading="lazy" />' +
+            (im.is_cover ? '<span class="thumb-cover-badge">封面</span>' : '') +
+            '</div>';
+        }
+        thumbsHtml += '</div>';
+      }
 
       var priceHtml = p.sale_price
         ? '<span class="product-price">' + _fmt(p.sale_price) + '</span><span class="product-original-price">' + _fmt(p.price) + '</span>'
@@ -56,7 +88,7 @@ export function getStaticPaths() {
         '<a href="/products/">全部商品</a><span class="breadcrumb-sep">/</span>' +
         '<span class="breadcrumb-current">' + p.name + '</span></nav>' +
         '<div class="product-detail">' +
-        '<div class="product-gallery"><div class="product-main-image">' + imgHtml + '</div></div>' +
+        '<div class="product-gallery"><div class="product-main-image" id="main-image-wrap">' + imgHtml(mainImgUrl, p.name) + '</div>' + thumbsHtml + '</div>' +
         '<div class="product-info">' +
         (p.category_name ? '<span class="product-category">' + p.category_name + '</span>' : '') +
         '<h1 class="product-name">' + p.name + '</h1>' +
@@ -147,5 +179,30 @@ export function getStaticPaths() {
   .add-to-cart-btn { flex: 1; }
   .product-description h3 { font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--sp-3); }
   .product-description p { font-size: var(--text-sm); color: var(--c-text-secondary); line-height: var(--leading-relaxed); }
+
+  /* ── Thumbnail Gallery ──────────────────────────────────────────── */
+  .product-gallery { display: flex; flex-direction: column; gap: var(--sp-3); }
+  .product-thumbnails { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+  .thumbnail-item {
+    width: 72px; height: 72px;
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all var(--duration) var(--ease);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .thumbnail-item:hover { opacity: 0.9; }
+  .thumbnail-item.active { opacity: 1; border-color: var(--c-text); }
+  .thumbnail-item img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb-cover-badge {
+    position: absolute; bottom: 2px; left: 2px;
+    background: var(--c-primary); color: #fff;
+    font-size: 9px; padding: 0 4px; border-radius: 2px;
+    line-height: 14px;
+  }
+
   @media (max-width: 768px) { .product-detail { grid-template-columns: 1fr; gap: var(--sp-6); } }
 </style>

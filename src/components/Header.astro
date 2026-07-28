@@ -6,7 +6,7 @@
   <div id="announcement-banner" class="announcement-bar">
     <div class="announcement-inner">
       <span class="announcement-text">
-        <strong>2026/08/01</strong> 系統正式上線！小羊農場的理念是把每件物品的價值淋漓盡致，讓不需要的物品以 0 元分享給需要的人（如需寄送僅需負擔 7-11 運費 $60）。大家一起讓物品發揮最大價值 🐑
+        <strong>2026/08/01</strong> 系統正式上線！小羊農場的理念是把每件物品的價值淋漓盡致，讓不需要的物品以 0 元分享給需要的人（如需寄送僅需負擔 7-11 運費 $75（運費 $60 + 包材 $15））。大家一起讓物品發揮最大價值 🐑
       </span>
       <button id="announcement-close" class="announcement-close" aria-label="關閉公告">✕</button>
     </div>
@@ -111,11 +111,16 @@
     var count = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
     if (badge && count > 0) { badge.textContent = String(count); }
 
-    // ── User avatar initial ──
+    // ── Auth UI: login btn ↔ avatar dropdown ──
     var userStr = localStorage.getItem('shop_user');
-    if (userStr) {
+    var token = localStorage.getItem('shop_token');
+    if (userStr && token) {
       try {
         var userData = JSON.parse(userStr);
+        // Show avatar dropdown, hide login button
+        document.getElementById('login-btn').style.display = 'none';
+        document.getElementById('user-dropdown').style.display = 'block';
+        // Avatar initial
         var initial = (userData.name || userData.email || '?').charAt(0).toUpperCase();
         var avatarEl = document.getElementById('user-avatar-initial');
         if (avatarEl) avatarEl.textContent = initial;
@@ -123,6 +128,11 @@
         var emailEl = document.getElementById('dropdown-user-email');
         if (nameEl) nameEl.textContent = userData.name || '';
         if (emailEl) emailEl.textContent = userData.email || '';
+        // Mobile nav
+        document.getElementById('mobile-login-link').style.display = 'none';
+        document.getElementById('mobile-account-link').style.display = 'block';
+        document.getElementById('mobile-orders-link').style.display = 'block';
+        document.getElementById('mobile-logout-btn').style.display = 'block';
       } catch(e) {}
     }
 
