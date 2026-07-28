@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="登入 — 小羊農場">
@@ -14,7 +15,7 @@ import Footer from '../components/Footer.astro';
           <h1>登入</h1>
           <p class="auth-subtitle">歡迎回來</p>
 
-          <form class="auth-form" id="login-form">
+          <form class="auth-form" id="login-form" onsubmit="return false">
             <div class="form-group">
               <label class="form-label">電子郵件</label>
               <input type="email" class="form-input" name="email" required placeholder="your@email.com" autocomplete="email" />
@@ -43,6 +44,7 @@ import Footer from '../components/Footer.astro';
 </BaseLayout>
 
 <script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
   document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('login-form');
     const errorEl = document.getElementById('login-error');
@@ -60,7 +62,6 @@ import Footer from '../components/Footer.astro';
         errorEl.style.display = 'none';
 
         try {
-          const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
           const res = await fetch(`${API_URL}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -77,7 +78,8 @@ import Footer from '../components/Footer.astro';
           localStorage.setItem('shop_user', JSON.stringify(data.user));
           window.location.href = '/';
         } catch (err) {
-          errorEl.textContent = err.message;
+          var msg = (err instanceof TypeError) ? '目前網路出現狀況中，請稍後再試' : (err.message || '登入失敗');
+          errorEl.textContent = msg;
           errorEl.style.display = 'block';
           submitBtn.disabled = false;
           submitBtn.textContent = '登入';

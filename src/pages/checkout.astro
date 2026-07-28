@@ -2,6 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="結帳 — 小羊農場">
@@ -13,62 +14,41 @@ import Footer from '../components/Footer.astro';
         <h1>結帳</h1>
       </div>
 
-      <div class="checkout-layout">
+      <div id="checkout-not-logged" class="empty-state" style="display:none">
+        <h3>請先登入</h3>
+        <p>登入後才能結帳</p>
+        <a href="/login/" class="btn btn-primary" style="margin-top:var(--sp-4)">登入</a>
+      </div>
+
+      <div id="checkout-empty-cart" class="empty-state" style="display:none">
+        <h3>購物車是空的</h3>
+        <p>請先加入商品</p>
+        <a href="/products/" class="btn btn-primary" style="margin-top:var(--sp-4)">瀏覽商品</a>
+      </div>
+
+      <div class="checkout-layout" id="checkout-layout" style="display:none">
         <form class="checkout-form" id="checkout-form">
           <h2>收件資訊</h2>
-
           <div class="form-group">
             <label class="form-label">收件人姓名 *</label>
             <input type="text" class="form-input" name="shipping_name" required placeholder="請輸入收件人姓名" />
           </div>
-
           <div class="form-group">
             <label class="form-label">聯絡電話 *</label>
             <input type="tel" class="form-input" name="shipping_phone" required placeholder="請輸入聯絡電話" />
           </div>
-
           <div class="form-group">
             <label class="form-label">收件地址 *</label>
             <textarea class="form-input" name="shipping_address" required placeholder="請輸入完整收件地址" rows="3"></textarea>
           </div>
-
           <div class="form-group">
             <label class="form-label">備註</label>
             <textarea class="form-input" name="note" placeholder="選填：配送備註或其他需求" rows="2"></textarea>
           </div>
-
-          <button type="submit" class="btn btn-primary btn-lg btn-block" id="submit-btn">
-            確認訂購
-          </button>
+          <div id="checkout-error" class="error-msg" style="display:none"></div>
+          <button type="submit" class="btn btn-primary btn-lg btn-block" id="submit-btn">確認訂購</button>
         </form>
-
-        <div class="checkout-summary">
-          <h3>訂單摘要</h3>
-          <div class="summary-items">
-            <div class="summary-item">
-              <span>有機棉質 T-Shirt × 2</span>
-              <span>NT$1,180</span>
-            </div>
-            <div class="summary-item">
-              <span>手工陶瓷杯 × 1</span>
-              <span>NT$450</span>
-            </div>
-          </div>
-          <hr class="divider" />
-          <div class="summary-row">
-            <span>商品合計</span>
-            <span>NT$1,630</span>
-          </div>
-          <div class="summary-row">
-            <span>運費</span>
-            <span>免運費</span>
-          </div>
-          <hr class="divider" />
-          <div class="summary-row summary-total">
-            <span>應付金額</span>
-            <span>NT$1,630</span>
-          </div>
-        </div>
+        <div class="checkout-summary" id="checkout-summary"></div>
       </div>
     </div>
   </main>
@@ -77,98 +57,104 @@ import Footer from '../components/Footer.astro';
 </BaseLayout>
 
 <script is:inline>
-  document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('checkout-form');
-    if (form) {
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const token = localStorage.getItem('shop_token');
-        if (!token) {
-          window.location.href = '/login';
-          return;
-        }
-        alert('訂單已建立！（此為示範）');
-      });
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  document.addEventListener('DOMContentLoaded', async function() {
+    var token = localStorage.getItem('shop_token');
+
+    if (!token) {
+      document.getElementById('checkout-not-logged').style.display = 'flex';
+      return;
     }
+
+    var cart = null;
+    try {
+      var res = await fetch(API_URL + '/api/cart', {
+        headers: { 'Authorization': 'Bearer ' + token },
+      });
+      if (!res.ok) throw new Error();
+      cart = await res.json();
+    } catch (e) {
+      alert('目前網路出現狀況中，請稍後再試');
+      return;
+    }
+
+    if (!cart.items.length) {
+      document.getElementById('checkout-empty-cart').style.display = 'flex';
+      return;
+    }
+
+    document.getElementById('checkout-layout').style.display = 'grid';
+
+    var itemsHtml = cart.items.map(function(item) {
+      var displayPrice = item.sale_price || item.price;
+      return '<div class="summary-item"><span>' + item.product_name + ' × ' + item.quantity + '</span><span>NT$' + item.subtotal.toLocaleString() + '</span></div>';
+    }).join('');
+
+    document.getElementById('checkout-summary').innerHTML =
+      '<h3>訂單摘要</h3>' +
+      '<div class="summary-items">' + itemsHtml + '</div>' +
+      '<hr class="divider" />' +
+      '<div class="summary-row"><span>商品合計</span><span>NT$' + cart.total.toLocaleString() + '</span></div>' +
+      '<div class="summary-row"><span>運費</span><span>免運費</span></div>' +
+      '<hr class="divider" />' +
+      '<div class="summary-row summary-total"><span>應付金額</span><span>NT$' + cart.total.toLocaleString() + '</span></div>';
+
+    document.getElementById('checkout-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var errorEl = document.getElementById('checkout-error');
+      var submitBtn = document.getElementById('submit-btn');
+      var formData = new FormData(e.target);
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '處理中...';
+      errorEl.style.display = 'none';
+
+      try {
+        var orderRes = await fetch(API_URL + '/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            shipping_name: formData.get('shipping_name'),
+            shipping_phone: formData.get('shipping_phone'),
+            shipping_address: formData.get('shipping_address'),
+            note: formData.get('note') || '',
+          }),
+        });
+
+        if (!orderRes.ok) {
+          var err = await orderRes.json();
+          throw new Error(err.detail || '建立訂單失敗');
+        }
+
+        var order = await orderRes.json();
+        localStorage.setItem('shop_cart_count', '0');
+        window.location.href = '/account/?order_success=' + order.id;
+      } catch (err) {
+        var msg = (err instanceof TypeError) ? '目前網路出現狀況中，請稍後再試' : (err.message || '建立訂單失敗');
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = '確認訂購';
+      }
+    });
   });
 </script>
 
 <style>
-  .page-header {
-    padding: var(--sp-10) 0;
-    border-bottom: 1px solid var(--c-border);
-    margin-bottom: var(--sp-8);
-  }
-
-  .page-header h1 {
-    font-size: var(--text-3xl);
-    font-weight: 400;
-  }
-
-  .checkout-layout {
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: var(--sp-10);
-    padding-bottom: var(--sp-16);
-  }
-
-  .checkout-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-6);
-  }
-
-  .checkout-form h2 {
-    font-size: var(--text-xl);
-    font-weight: 400;
-  }
-
-  .checkout-summary {
-    position: sticky;
-    top: 80px;
-    align-self: start;
-    padding: var(--sp-6);
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius);
-    background: var(--c-bg-alt);
-  }
-
-  .checkout-summary h3 {
-    font-size: var(--text-base);
-    font-weight: 500;
-    margin-bottom: var(--sp-4);
-  }
-
-  .summary-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-2);
-  }
-
-  .summary-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: var(--text-sm);
-    color: var(--c-text-secondary);
-  }
-
-  .summary-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: var(--text-sm);
-    color: var(--c-text-secondary);
-    margin-bottom: var(--sp-2);
-  }
-
-  .summary-total {
-    font-size: var(--text-base);
-    font-weight: 500;
-    color: var(--c-text);
-  }
-
-  @media (max-width: 768px) {
-    .checkout-layout {
-      grid-template-columns: 1fr;
-    }
-  }
+  .page-header { padding: var(--sp-10) 0; border-bottom: 1px solid var(--c-border); margin-bottom: var(--sp-8); }
+  .page-header h1 { font-size: var(--text-3xl); font-weight: 400; }
+  .checkout-layout { display: grid; grid-template-columns: 1fr 360px; gap: var(--sp-10); padding-bottom: var(--sp-16); }
+  .checkout-form { display: flex; flex-direction: column; gap: var(--sp-6); }
+  .checkout-form h2 { font-size: var(--text-xl); font-weight: 400; }
+  .checkout-summary { position: sticky; top: 80px; align-self: start; padding: var(--sp-6); border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-bg-alt); }
+  .checkout-summary h3 { font-size: var(--text-base); font-weight: 500; margin-bottom: var(--sp-4); }
+  .summary-items { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .summary-item { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--c-text-secondary); }
+  .summary-row { display: flex; justify-content: space-between; font-size: var(--text-sm); color: var(--c-text-secondary); margin-bottom: var(--sp-2); }
+  .summary-total { font-size: var(--text-base); font-weight: 500; color: var(--c-text); }
+  .error-msg { padding: var(--sp-3) var(--sp-4); background: #fef2f2; border: 1px solid #fecaca; color: var(--c-error); font-size: var(--text-sm); border-radius: var(--radius); }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--sp-16) 0; text-align: center; }
+  .empty-state h3 { font-size: var(--text-lg); font-weight: 400; margin-top: var(--sp-4); }
+  .empty-state p { color: var(--c-text-secondary); font-size: var(--text-sm); margin-top: var(--sp-2); }
+  @media (max-width: 768px) { .checkout-layout { grid-template-columns: 1fr; } }
 </style>

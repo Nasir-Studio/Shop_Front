@@ -2,14 +2,8 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
-
-const statusMap: Record<string, string> = {
-  pending: '待付款',
-  paid: '已付款',
-  shipped: '已出貨',
-  completed: '已完成',
-  cancelled: '已取消',
-};
+import AdminGuard from '../../components/AdminGuard.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="訂單管理 — 小羊農場">
@@ -49,23 +43,17 @@ const statusMap: Record<string, string> = {
   </main>
 
   <Footer />
+  <AdminGuard />
 </BaseLayout>
 
 <script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
   const statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
   const nextStatus = { pending: 'paid', paid: 'shipped', shipped: 'completed' };
 
   document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.__requireAdmin()) return;
     const token = localStorage.getItem('shop_token');
-    const userStr = localStorage.getItem('shop_user');
-    const user = userStr ? JSON.parse(userStr) : null;
-
-    if (!token || !user || user.role !== 'admin') {
-      window.location.href = '/login';
-      return;
-    }
-
-    const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
 
     async function loadOrders() {
       try {

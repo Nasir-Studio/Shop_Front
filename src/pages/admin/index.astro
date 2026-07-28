@@ -2,6 +2,8 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+import AdminGuard from '../../components/AdminGuard.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 ---
 
 <BaseLayout title="管理後台 — 小羊農場">
@@ -48,21 +50,16 @@ import Footer from '../../components/Footer.astro';
   </main>
 
   <Footer />
+  <AdminGuard />
 </BaseLayout>
 
 <script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
   document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.__requireAdmin()) return;
     const token = localStorage.getItem('shop_token');
-    const userStr = localStorage.getItem('shop_user');
-    const user = userStr ? JSON.parse(userStr) : null;
-
-    if (!token || !user || user.role !== 'admin') {
-      window.location.href = '/login';
-      return;
-    }
 
     try {
-      const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
       const res = await fetch(`${API_URL}/api/admin/stats`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });

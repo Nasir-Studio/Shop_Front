@@ -2,99 +2,19 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
-// Static demo product
-const product = {
-  name: '有機棉質 T-Shirt',
-  slug: 'organic-cotton-tee',
-  description: '採用 100% 有機棉製成，柔軟舒適，透氣性佳。簡約剪裁，適合日常穿著。每一件都經過嚴格品質控管，確保給你最好的穿著體驗。',
-  price: 590,
-  sale_price: null,
-  stock: 25,
-  image_url: '',
-  category_name: '上衣',
-  is_featured: false,
-};
+export function getStaticPaths() {
+  return [];
+}
 ---
 
-<BaseLayout title={`${product.name} — 小羊農場`}>
+<BaseLayout title="商品 — 小羊農場">
   <Header />
 
   <main class="pt-header">
-    <div class="container">
-      <!-- Breadcrumb -->
-      <nav class="breadcrumb">
-        <a href="/">首頁</a>
-        <span class="breadcrumb-sep">/</span>
-        <a href="/products">全部商品</a>
-        <span class="breadcrumb-sep">/</span>
-        <span class="breadcrumb-current">{product.name}</span>
-      </nav>
-
-      <div class="product-detail">
-        <div class="product-gallery">
-          <div class="product-main-image">
-            {product.image_url ? (
-              <img src={product.image_url} alt={product.name} />
-            ) : (
-              <div class="image-placeholder">
-                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                  <circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div class="product-info">
-          <span class="product-category">{product.category_name}</span>
-          <h1 class="product-name">{product.name}</h1>
-
-          <div class="product-pricing">
-            <span class="product-price">
-              {product.sale_price
-                ? `NT$${product.sale_price.toLocaleString()}`
-                : product.price === 0 ? '免費' : `NT$${product.price.toLocaleString()}`
-              }
-            </span>
-            {product.sale_price && product.sale_price < product.price && (
-              <span class="product-original-price">NT$${product.price.toLocaleString()}</span>
-            )}
-          </div>
-
-          <div class="product-meta">
-            <div class="meta-item">
-              <span class="meta-label">庫存</span>
-              <span class={`meta-value ${product.stock > 0 ? '' : 'out-of-stock'}`}>
-                {product.stock > 0 ? `剩餘 ${product.stock} 件` : '已售完'}
-              </span>
-            </div>
-          </div>
-
-          <div class="product-actions">
-            <div class="quantity-selector">
-              <button class="qty-btn" id="qty-minus">−</button>
-              <input type="number" class="qty-input" id="qty-input" value="1" min="1" max={product.stock} />
-              <button class="qty-btn" id="qty-plus">+</button>
-            </div>
-            <button
-              class="btn btn-primary btn-lg btn-block add-to-cart-btn"
-              data-product-id="1"
-              data-product-stock={product.stock}
-              id="add-to-cart-btn"
-            >
-              加入購物車
-            </button>
-          </div>
-
-          <div class="product-description">
-            <h3>商品說明</h3>
-            <p>{product.description}</p>
-          </div>
-        </div>
-      </div>
+    <div class="container" id="product-container">
+      <div style="padding:var(--sp-16) 0;text-align:center;color:var(--c-text-secondary)">載入中...</div>
     </div>
   </main>
 
@@ -102,207 +22,124 @@ const product = {
 </BaseLayout>
 
 <script is:inline>
-  document.addEventListener('DOMContentLoaded', function() {
-    const minusBtn = document.getElementById('qty-minus');
-    const plusBtn = document.getElementById('qty-plus');
-    const input = document.getElementById('qty-input');
-    const addBtn = document.getElementById('add-to-cart-btn');
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  document.addEventListener('DOMContentLoaded', async function() {
+    var slug = window.location.pathname.split('/').filter(Boolean).pop();
+    var container = document.getElementById('product-container');
 
-    if (minusBtn && input) {
-      minusBtn.addEventListener('click', function() {
-        const v = parseInt(input.value) || 1;
-        if (v > 1) input.value = String(v - 1);
-      });
-    }
+    try {
+      var res = await fetch(API_URL + '/api/products/' + slug);
+      if (!res.ok) throw new Error('Not found');
+      var p = await res.json();
+      document.title = p.name + ' — 小羊農場';
 
-    if (plusBtn && input) {
-      plusBtn.addEventListener('click', function() {
-        const v = parseInt(input.value) || 1;
-        const max = parseInt(input.max) || 999;
-        if (v < max) input.value = String(v + 1);
-      });
-    }
+      var imgHtml = p.image_url
+        ? '<img src="' + p.image_url + '" alt="' + p.name + '" />'
+        : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
 
-    if (addBtn) {
-      addBtn.addEventListener('click', async function() {
-        const token = localStorage.getItem('shop_token');
-        if (!token) {
-          window.location.href = '/login';
-          return;
-        }
-        const qty = parseInt(input.value) || 1;
-        const productId = parseInt(addBtn.dataset.productId);
-        // Would call API here
-        alert('已加入購物車');
-      });
+      var priceHtml = p.sale_price
+        ? '<span class="product-price">NT$' + p.sale_price.toLocaleString() + '</span><span class="product-original-price">NT$' + p.price.toLocaleString() + '</span>'
+        : '<span class="product-price">' + (p.price === 0 ? '免費' : 'NT$' + p.price.toLocaleString()) + '</span>';
+
+      var stockHtml = p.stock > 0
+        ? '<span class="meta-value">剩餘 ' + p.stock + ' 件</span>'
+        : '<span class="meta-value out-of-stock">已售完</span>';
+
+      container.innerHTML = '<nav class="breadcrumb">' +
+        '<a href="/">首頁</a><span class="breadcrumb-sep">/</span>' +
+        '<a href="/products/">全部商品</a><span class="breadcrumb-sep">/</span>' +
+        '<span class="breadcrumb-current">' + p.name + '</span></nav>' +
+        '<div class="product-detail">' +
+        '<div class="product-gallery"><div class="product-main-image">' + imgHtml + '</div></div>' +
+        '<div class="product-info">' +
+        (p.category_name ? '<span class="product-category">' + p.category_name + '</span>' : '') +
+        '<h1 class="product-name">' + p.name + '</h1>' +
+        '<div class="product-pricing">' + priceHtml + '</div>' +
+        '<div class="product-meta"><div class="meta-item"><span class="meta-label">庫存</span>' + stockHtml + '</div></div>' +
+        (p.stock > 0 ?
+          '<div class="product-actions">' +
+          '<div class="quantity-selector">' +
+          '<button class="qty-btn" id="qty-minus">−</button>' +
+          '<input type="number" class="qty-input" id="qty-input" value="1" min="1" max="' + p.stock + '" />' +
+          '<button class="qty-btn" id="qty-plus">+</button></div>' +
+          '<button class="btn btn-primary btn-lg btn-block add-to-cart-btn" id="add-to-cart-btn" data-product-id="' + p.id + '" data-product-stock="' + p.stock + '">加入購物車</button>' +
+          '</div>' : '') +
+        '<div class="product-description"><h3>商品說明</h3><p>' + (p.description || '暫無說明') + '</p></div>' +
+        '</div></div>';
+
+      var minusBtn = document.getElementById('qty-minus');
+      var plusBtn = document.getElementById('qty-plus');
+      var input = document.getElementById('qty-input');
+      var addBtn = document.getElementById('add-to-cart-btn');
+
+      if (minusBtn && input) minusBtn.addEventListener('click', function() { var v = parseInt(input.value) || 1; if (v > 1) input.value = String(v - 1); });
+      if (plusBtn && input) plusBtn.addEventListener('click', function() { var v = parseInt(input.value) || 1; if (v < p.stock) input.value = String(v + 1); });
+
+      if (addBtn) {
+        addBtn.addEventListener('click', async function() {
+          var token = localStorage.getItem('shop_token');
+          if (!token) { window.location.href = '/login/'; return; }
+          addBtn.disabled = true;
+          addBtn.textContent = '加入中...';
+          try {
+            var qty = parseInt(input.value) || 1;
+            var cartRes = await fetch(API_URL + '/api/cart', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ product_id: p.id, quantity: qty }),
+            });
+            if (!cartRes.ok) {
+              var err = await cartRes.json();
+              throw new Error(err.detail || '加入購物車失敗');
+            }
+            var cart = await cartRes.json();
+            localStorage.setItem('shop_cart_count', String(cart.item_count));
+            var badge = document.getElementById('cart-badge');
+            if (badge) { badge.textContent = String(cart.item_count); badge.style.display = 'flex'; }
+            addBtn.textContent = '已加入！';
+            setTimeout(function() { addBtn.textContent = '加入購物車'; addBtn.disabled = false; }, 1500);
+          } catch (err) {
+            var msg = (err instanceof TypeError) ? '目前網路出現狀況中，請稍後再試' : (err.message || '加入購物車失敗');
+            alert(msg);
+            addBtn.textContent = '加入購物車';
+            addBtn.disabled = false;
+          }
+        });
+      }
+    } catch (e) {
+      var isNetwork = (e instanceof TypeError);
+      container.innerHTML = '<div style="padding:var(--sp-16) 0;text-align:center"><div style="font-size:48px;font-weight:300;color:var(--c-border);margin-bottom:var(--sp-4)">' + (isNetwork ? '⚠' : '404') + '</div><h2 style="font-weight:400;margin-bottom:var(--sp-4)">' + (isNetwork ? '目前網路出現狀況中，請稍後再試' : '商品不存在') + '</h2>' + (isNetwork ? '' : '<a href="/products/" class="btn btn-primary">瀏覽全部商品</a>') + '</div>';
     }
   });
 </script>
 
 <style>
-  .breadcrumb {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-2);
-    padding: var(--sp-6) 0;
-    font-size: var(--text-sm);
-    color: var(--c-text-secondary);
-  }
-
+  .breadcrumb { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-6) 0; font-size: var(--text-sm); color: var(--c-text-secondary); }
   .breadcrumb a { transition: color var(--duration) var(--ease); }
   .breadcrumb a:hover { color: var(--c-text); }
   .breadcrumb-sep { color: var(--c-text-light); }
   .breadcrumb-current { color: var(--c-text); }
-
-  .product-detail {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--sp-12);
-    padding-bottom: var(--sp-16);
-  }
-
-  .product-main-image {
-    aspect-ratio: 1;
-    background: var(--c-bg-alt);
-    border: 1px solid var(--c-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .product-main-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .image-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .product-info {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-6);
-    padding-top: var(--sp-4);
-  }
-
-  .product-category {
-    font-size: var(--text-xs);
-    color: var(--c-text-light);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .product-info .product-name {
-    font-size: var(--text-3xl);
-    font-weight: 400;
-    line-height: var(--leading-tight);
-  }
-
-  .product-pricing {
-    display: flex;
-    align-items: baseline;
-    gap: var(--sp-3);
-  }
-
-  .product-price {
-    font-size: var(--text-2xl);
-    font-weight: 500;
-  }
-
-  .product-original-price {
-    font-size: var(--text-base);
-    color: var(--c-text-light);
-    text-decoration: line-through;
-  }
-
-  .product-meta {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-3);
-    padding: var(--sp-4) 0;
-    border-top: 1px solid var(--c-border);
-    border-bottom: 1px solid var(--c-border);
-  }
-
-  .meta-item {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    font-size: var(--text-sm);
-  }
-
+  .product-detail { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); padding-bottom: var(--sp-16); }
+  .product-main-image { aspect-ratio: 1; background: var(--c-bg-alt); border: 1px solid var(--c-border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .product-main-image img { width: 100%; height: 100%; object-fit: cover; }
+  .product-info { display: flex; flex-direction: column; gap: var(--sp-6); padding-top: var(--sp-4); }
+  .product-category { font-size: var(--text-xs); color: var(--c-text-light); letter-spacing: 0.06em; text-transform: uppercase; }
+  .product-info .product-name { font-size: var(--text-3xl); font-weight: 400; line-height: var(--leading-tight); }
+  .product-pricing { display: flex; align-items: baseline; gap: var(--sp-3); }
+  .product-price { font-size: var(--text-2xl); font-weight: 500; }
+  .product-original-price { font-size: var(--text-base); color: var(--c-text-light); text-decoration: line-through; }
+  .product-meta { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4) 0; border-top: 1px solid var(--c-border); border-bottom: 1px solid var(--c-border); }
+  .meta-item { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--text-sm); }
   .meta-label { color: var(--c-text-light); min-width: 48px; }
   .out-of-stock { color: var(--c-error); }
-
-  .product-actions {
-    display: flex;
-    gap: var(--sp-4);
-    align-items: center;
-  }
-
-  .quantity-selector {
-    display: flex;
-    align-items: center;
-    border: 1px solid var(--c-border);
-    border-radius: var(--radius);
-  }
-
-  .qty-btn {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--text-lg);
-    color: var(--c-text-secondary);
-    transition: background var(--duration) var(--ease);
-  }
-
+  .product-actions { display: flex; gap: var(--sp-4); align-items: center; }
+  .quantity-selector { display: flex; align-items: center; border: 1px solid var(--c-border); border-radius: var(--radius); }
+  .qty-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: var(--text-lg); color: var(--c-text-secondary); transition: background var(--duration) var(--ease); background: none; border: none; cursor: pointer; }
   .qty-btn:hover { background: var(--c-bg-alt); }
-
-  .qty-input {
-    width: 48px;
-    height: 40px;
-    text-align: center;
-    border: none;
-    border-left: 1px solid var(--c-border);
-    border-right: 1px solid var(--c-border);
-    font-size: var(--text-sm);
-    -moz-appearance: textfield;
-    outline: none;
-  }
-
-  .qty-input::-webkit-inner-spin-button,
-  .qty-input::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-  }
-
-  .add-to-cart-btn {
-    flex: 1;
-  }
-
-  .product-description h3 {
-    font-size: var(--text-sm);
-    font-weight: 500;
-    margin-bottom: var(--sp-3);
-  }
-
-  .product-description p {
-    font-size: var(--text-sm);
-    color: var(--c-text-secondary);
-    line-height: var(--leading-relaxed);
-  }
-
-  @media (max-width: 768px) {
-    .product-detail {
-      grid-template-columns: 1fr;
-      gap: var(--sp-6);
-    }
-  }
+  .qty-input { width: 48px; height: 40px; text-align: center; border: none; border-left: 1px solid var(--c-border); border-right: 1px solid var(--c-border); font-size: var(--text-sm); -moz-appearance: textfield; outline: none; }
+  .qty-input::-webkit-inner-spin-button, .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .add-to-cart-btn { flex: 1; }
+  .product-description h3 { font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--sp-3); }
+  .product-description p { font-size: var(--text-sm); color: var(--c-text-secondary); line-height: var(--leading-relaxed); }
+  @media (max-width: 768px) { .product-detail { grid-template-columns: 1fr; gap: var(--sp-6); } }
 </style>
