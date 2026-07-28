@@ -1,0 +1,101 @@
+---
+---
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="footer-logo">小羊農場</span>
+      <p class="footer-tagline">精選好物，簡單生活</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4 class="footer-heading">購物</h4>
+        <a href="/products" class="footer-link">全部商品</a>
+        <a href="/cart" class="footer-link">購物車</a>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading">帳號</h4>
+        <a href="/login" class="footer-link">登入</a>
+        <a href="/register" class="footer-link">註冊</a>
+        <a href="/account" class="footer-link">我的帳號</a>
+      </div>
+      <div class="footer-col">
+        <h4 class="footer-heading">關於</h4>
+        <a href="/" class="footer-link">關於我們</a>
+        <a href="/" class="footer-link">聯絡方式</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; {new Date().getFullYear()} 小羊農場. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--c-bg-dark);
+    color: var(--c-text-inverse);
+    margin-top: var(--sp-24);
+  }
+
+  .footer-inner {
+    padding: var(--sp-16) var(--sp-6) var(--sp-8);
+  }
+
+  .footer-brand {
+    margin-bottom: var(--sp-10);
+  }
+
+  .footer-logo {
+    font-size: var(--text-xl);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .footer-tagline {
+    margin-top: var(--sp-2);
+    color: rgba(255,255,255,0.5);
+    font-size: var(--text-sm);
+  }
+
+  .footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-12);
+  }
+
+  .footer-heading {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: var(--sp-4);
+  }
+
+  .footer-link {
+    display: block;
+    font-size: var(--text-sm);
+    color: rgba(255,255,255,0.6);
+    padding: var(--sp-1) 0;
+    transition: color var(--duration) var(--ease);
+  }
+
+  .footer-link:hover {
+    color: rgba(255,255,255,1);
+  }
+
+  .footer-bottom {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: var(--sp-6);
+    font-size: var(--text-xs);
+    color: rgba(255,255,255,0.3);
+  }
+
+  @media (max-width: 768px) {
+    .footer-links {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

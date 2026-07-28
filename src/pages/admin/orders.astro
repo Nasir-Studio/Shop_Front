@@ -1,0 +1,156 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+
+const statusMap: Record<string, string> = {
+  pending: '待付款',
+  paid: '已付款',
+  shipped: '已出貨',
+  completed: '已完成',
+  cancelled: '已取消',
+};
+---
+
+<BaseLayout title="訂單管理 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link active">訂單管理</a>
+      </nav>
+
+      <div class="table-wrap">
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>訂單 #</th>
+              <th>用戶</th>
+              <th>商品數</th>
+              <th>金額</th>
+              <th>狀態</th>
+              <th>日期</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="orders-tbody">
+            <tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  const statusMap = { pending: '待付款', paid: '已付款', shipped: '已出貨', completed: '已完成', cancelled: '已取消' };
+  const nextStatus = { pending: 'paid', paid: 'shipped', shipped: 'completed' };
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem('shop_token');
+    const userStr = localStorage.getItem('shop_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (!token || !user || user.role !== 'admin') {
+      window.location.href = '/login';
+      return;
+    }
+
+    const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
+
+    async function loadOrders() {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/orders`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed');
+        const orders = await res.json();
+        const tbody = document.getElementById('orders-tbody');
+        if (!orders.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">尚無訂單</td></tr>';
+          return;
+        }
+        tbody.innerHTML = orders.map(function(o) {
+          const date = new Date(o.created_at).toLocaleDateString('zh-TW');
+          const actionBtn = nextStatus[o.status]
+            ? '<button class="btn btn-ghost btn-sm" onclick="advanceOrder(' + o.id + ',\'' + o.status + '\')">推進狀態</button>'
+            : '-';
+          return '<tr>' +
+            '<td>#' + o.id + '</td>' +
+            '<td>' + o.user_email + '</td>' +
+            '<td>' + o.item_count + '</td>' +
+            '<td>NT$' + o.total.toLocaleString() + '</td>' +
+            '<td><span class="status status-' + o.status + '"><span class="status-dot"></span>' + statusMap[o.status] + '</span></td>' +
+            '<td>' + date + '</td>' +
+            '<td>' + actionBtn + '</td>' +
+            '</tr>';
+        }).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.advanceOrder = async function(id, currentStatus) {
+      const newStatus = nextStatus[currentStatus];
+      if (!newStatus) return;
+      try {
+        await fetch(`${API_URL}/api/admin/orders/${id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ status: newStatus }),
+        });
+        loadOrders();
+      } catch (err) {
+        alert('操作失敗');
+      }
+    };
+
+    loadOrders();
+  });
+</script>
+
+<style>
+  .page-header {
+    padding: var(--sp-10) 0;
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+
+  .page-header h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+
+  .admin-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease);
+  }
+
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active {
+    color: var(--c-text);
+    border-bottom-color: var(--c-text);
+    font-weight: 500;
+  }
+
+  .text-center { text-align: center; }
+</style>

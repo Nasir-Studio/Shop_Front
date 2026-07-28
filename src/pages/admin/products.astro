@@ -1,0 +1,153 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="商品管理 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link active">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+      </nav>
+
+      <div class="admin-toolbar">
+        <button class="btn btn-primary" id="add-product-btn">新增商品</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="products-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>商品名稱</th>
+              <th>分類</th>
+              <th>價格</th>
+              <th>庫存</th>
+              <th>狀態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem('shop_token');
+    const userStr = localStorage.getItem('shop_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (!token || !user || user.role !== 'admin') {
+      window.location.href = '/login';
+      return;
+    }
+
+    const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/products`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed');
+        const products = await res.json();
+        const tbody = document.getElementById('products-tbody');
+        if (!products.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:var(--sp-8)">尚無商品</td></tr>';
+          return;
+        }
+        tbody.innerHTML = products.map(function(p) {
+          return '<tr>' +
+            '<td>' + p.id + '</td>' +
+            '<td>' + p.name + '</td>' +
+            '<td>' + (p.category_name || '-') + '</td>' +
+            '<td>NT$' + p.price.toLocaleString() + (p.sale_price ? ' <s style="color:#999">NT$' + p.price.toLocaleString() + '</s>' : '') + '</td>' +
+            '<td>' + p.stock + '</td>' +
+            '<td><span class="badge' + (p.is_active ? '' : ' badge-dark') + '">' + (p.is_active ? '上架中' : '已下架') + '</span></td>' +
+            '<td><button class="btn btn-ghost btn-sm" onclick="toggleProduct(' + p.id + ',' + p.is_active + ')">' + (p.is_active ? '下架' : '上架') + '</button></td>' +
+            '</tr>';
+        }).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.toggleProduct = async function(id, isActive) {
+      try {
+        await fetch(`${API_URL}/api/admin/products/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ is_active: !isActive }),
+        });
+        loadProducts();
+      } catch (err) {
+        alert('操作失敗');
+      }
+    };
+
+    document.getElementById('add-product-btn').addEventListener('click', function() {
+      alert('新增商品功能（請搭配管理表單使用）');
+    });
+
+    loadProducts();
+  });
+</script>
+
+<style>
+  .page-header {
+    padding: var(--sp-10) 0;
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+
+  .page-header h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+
+  .admin-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease);
+  }
+
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active {
+    color: var(--c-text);
+    border-bottom-color: var(--c-text);
+    font-weight: 500;
+  }
+
+  .admin-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--sp-4);
+  }
+
+  .text-center { text-align: center; }
+</style>

@@ -1,0 +1,160 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="管理後台 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link active">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+      </nav>
+
+      <div class="admin-content">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">商品總數</span>
+            <span class="stat-value" id="stat-products">--</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">訂單總數</span>
+            <span class="stat-value" id="stat-orders">--</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">用戶總數</span>
+            <span class="stat-value" id="stat-users">--</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">總營收</span>
+            <span class="stat-value" id="stat-revenue">--</span>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <h2>待處理訂單</h2>
+          <p class="text-secondary text-sm">待付款訂單數：<strong id="stat-pending">--</strong></p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', async function() {
+    const token = localStorage.getItem('shop_token');
+    const userStr = localStorage.getItem('shop_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    if (!token || !user || user.role !== 'admin') {
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/admin/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load stats');
+      const stats = await res.json();
+
+      document.getElementById('stat-products').textContent = stats.total_products;
+      document.getElementById('stat-orders').textContent = stats.total_orders;
+      document.getElementById('stat-users').textContent = stats.total_users;
+      document.getElementById('stat-revenue').textContent = `NT$${stats.total_revenue.toLocaleString()}`;
+      document.getElementById('stat-pending').textContent = stats.pending_orders;
+    } catch (err) {
+      console.error('Failed to load admin stats:', err);
+    }
+  });
+</script>
+
+<style>
+  .page-header {
+    padding: var(--sp-10) 0;
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-6);
+  }
+
+  .page-header h1 {
+    font-size: var(--text-3xl);
+    font-weight: 400;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: var(--sp-6);
+    border-bottom: 1px solid var(--c-border);
+    margin-bottom: var(--sp-8);
+  }
+
+  .admin-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all var(--duration) var(--ease);
+  }
+
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active {
+    color: var(--c-text);
+    border-bottom-color: var(--c-text);
+    font-weight: 500;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-6);
+    margin-bottom: var(--sp-10);
+  }
+
+  .stat-card {
+    padding: var(--sp-6);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .stat-label {
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+  }
+
+  .stat-value {
+    font-size: var(--text-3xl);
+    font-weight: 500;
+  }
+
+  .section-block {
+    padding: var(--sp-6);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+  }
+
+  .section-block h2 {
+    font-size: var(--text-lg);
+    font-weight: 400;
+    margin-bottom: var(--sp-2);
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

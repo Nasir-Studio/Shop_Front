@@ -1,0 +1,225 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import ProductCard from '../components/ProductCard.astro';
+
+// Demo products for static build
+const demoProducts = [
+  { name: '有機棉質 T-Shirt', slug: 'organic-cotton-tee', price: 590, sale_price: null, image_url: '', category_name: '上衣', is_featured: true },
+  { name: '亞麻寬褲', slug: 'linen-wide-pants', price: 1280, sale_price: 980, image_url: '', category_name: '下身', is_featured: true },
+  { name: '手工陶瓷杯', slug: 'ceramic-cup', price: 450, sale_price: null, image_url: '', category_name: '生活', is_featured: true },
+  { name: '極簡帆布包', slug: 'canvas-bag', price: 680, sale_price: null, image_url: '', category_name: '配件', is_featured: true },
+  { name: '天然精油擴香', slug: 'essential-oil', price: 380, sale_price: 320, image_url: '', category_name: '生活', is_featured: true },
+  { name: '純棉毛巾組', slug: 'cotton-towel-set', price: 520, sale_price: null, image_url: '', category_name: '生活', is_featured: true },
+  { name: '羊毛襪三入組', slug: 'wool-socks', price: 360, sale_price: null, image_url: '', category_name: '配件', is_featured: true },
+  { name: '不鏽鋼保溫瓶', slug: 'thermos-bottle', price: 780, sale_price: 650, image_url: '', category_name: '生活', is_featured: true },
+];
+---
+
+<BaseLayout>
+  <Header />
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <p class="hero-label">Little Sheep Farm</p>
+        <h1 class="hero-title">小羊農場</h1>
+        <p class="hero-subtitle">精選好物，簡單生活</p>
+        <div class="hero-actions">
+          <a href="/products" class="btn btn-primary btn-lg">開始選購</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2>精選商品</h2>
+          <a href="/products" class="btn btn-ghost btn-sm">查看全部 →</a>
+        </div>
+        <div class="grid grid-4">
+          {demoProducts.map((p) => (
+            <ProductCard
+              name={p.name}
+              slug={p.slug}
+              price={p.price}
+              sale_price={p.sale_price}
+              image_url={p.image_url}
+              category_name={p.category_name}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="section section-alt">
+      <div class="container">
+        <div class="section-header">
+          <h2>探索分類</h2>
+        </div>
+        <div class="grid grid-3">
+          <a href="/products?category=clothing" class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M20.38 3.46L16 2 12 5 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/>
+              </svg>
+            </div>
+            <h3>服飾</h3>
+            <p>上衣 · 下身 · 外套</p>
+          </a>
+          <a href="/products?category=life" class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </div>
+            <h3>生活</h3>
+            <p>杯具 · 餐具 · 收納</p>
+          </a>
+          <a href="/products?category=accessories" class="category-card">
+            <div class="category-icon">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+              </svg>
+            </div>
+            <h3>配件</h3>
+            <p>包款 · 襪子 · 飾品</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section">
+      <div class="container">
+        <div class="cta-card">
+          <h2>簡單生活，從小羊農場開始</h2>
+          <p>我們精選每一件商品，只為給你最好的品質</p>
+          <a href="/products" class="btn btn-primary btn-lg">探索商品</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .hero {
+    padding: var(--sp-24) 0 var(--sp-16);
+    text-align: center;
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .hero-label {
+    font-size: var(--text-xs);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--c-text-light);
+    margin-bottom: var(--sp-4);
+  }
+
+  .hero-title {
+    font-size: var(--text-5xl);
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--sp-4);
+  }
+
+  .hero-subtitle {
+    font-size: var(--text-lg);
+    color: var(--c-text-secondary);
+    font-weight: 300;
+    margin-bottom: var(--sp-8);
+  }
+
+  .hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--sp-4);
+  }
+
+  .section {
+    padding: var(--sp-16) 0;
+  }
+
+  .section-alt {
+    background: var(--c-bg-alt);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-8);
+  }
+
+  .section-header h2 {
+    font-size: var(--text-2xl);
+    font-weight: 400;
+  }
+
+  .category-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: var(--sp-10) var(--sp-6);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    transition: all var(--duration) var(--ease);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .category-card:hover {
+    border-color: var(--c-text);
+    box-shadow: var(--shadow);
+  }
+
+  .category-icon {
+    margin-bottom: var(--sp-4);
+    opacity: 0.6;
+  }
+
+  .category-card h3 {
+    font-size: var(--text-base);
+    font-weight: 500;
+    margin-bottom: var(--sp-2);
+  }
+
+  .category-card p {
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+  }
+
+  .cta-card {
+    text-align: center;
+    padding: var(--sp-16) var(--sp-6);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+  }
+
+  .cta-card h2 {
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    margin-bottom: var(--sp-4);
+  }
+
+  .cta-card p {
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-8);
+  }
+
+  @media (max-width: 768px) {
+    .hero-title { font-size: var(--text-3xl); }
+    .section { padding: var(--sp-10) 0; }
+  }
+</style>

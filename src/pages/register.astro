@@ -1,0 +1,160 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="註冊 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="auth-page">
+        <div class="auth-card">
+          <h1>建立帳號</h1>
+          <p class="auth-subtitle">加入小羊農場</p>
+
+          <form class="auth-form" id="register-form">
+            <div class="form-group">
+              <label class="form-label">姓名</label>
+              <input type="text" class="form-input" name="name" required placeholder="請輸入姓名" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">電子郵件</label>
+              <input type="email" class="form-input" name="email" required placeholder="your@email.com" autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">密碼</label>
+              <input type="password" class="form-input" name="password" required placeholder="至少 6 個字元" minlength="6" autocomplete="new-password" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">確認密碼</label>
+              <input type="password" class="form-input" name="confirm_password" required placeholder="再次輸入密碼" minlength="6" autocomplete="new-password" />
+            </div>
+
+            <div id="register-error" class="error-msg" style="display:none"></div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="register-submit">
+              註冊
+            </button>
+          </form>
+
+          <p class="auth-switch">
+            已有帳號？ <a href="/login">立即登入</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('register-form');
+    const errorEl = document.getElementById('register-error');
+
+    if (form) {
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const name = formData.get('name');
+        const email = formData.get('email');
+        const password = formData.get('password');
+        const confirmPassword = formData.get('confirm_password');
+
+        if (password !== confirmPassword) {
+          errorEl.textContent = '兩次密碼不一致';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        const submitBtn = document.getElementById('register-submit');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '註冊中...';
+        errorEl.style.display = 'none';
+
+        try {
+          const API_URL = import.meta.env?.PUBLIC_API_URL || 'http://localhost:8000';
+          const res = await fetch(`${API_URL}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || '註冊失敗');
+          }
+
+          const data = await res.json();
+          localStorage.setItem('shop_token', data.access_token);
+          localStorage.setItem('shop_user', JSON.stringify(data.user));
+          window.location.href = '/';
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = '註冊';
+        }
+      });
+    }
+  });
+</script>
+
+<style>
+  .auth-page {
+    display: flex;
+    justify-content: center;
+    padding: var(--sp-16) 0;
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .auth-card h1 {
+    font-size: var(--text-2xl);
+    font-weight: 400;
+    text-align: center;
+    margin-bottom: var(--sp-2);
+  }
+
+  .auth-subtitle {
+    text-align: center;
+    color: var(--c-text-secondary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--sp-8);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+  }
+
+  .error-msg {
+    padding: var(--sp-3) var(--sp-4);
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--c-error);
+    font-size: var(--text-sm);
+    border-radius: var(--radius);
+  }
+
+  .auth-switch {
+    text-align: center;
+    margin-top: var(--sp-6);
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+  }
+
+  .auth-switch a {
+    color: var(--c-text);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>

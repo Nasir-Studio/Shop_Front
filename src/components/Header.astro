@@ -1,0 +1,282 @@
+---
+---
+
+<header class="header">
+  <div class="header-inner container">
+    <a href="/" class="logo">
+      <svg class="logo-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 3C8 3 4 6 4 10c0 2 1 4 3 5l-1 6h12l-1-6c2-1 3-3 3-5 0-4-4-7-8-7z"/>
+        <circle cx="9" cy="10" r="1" fill="currentColor"/>
+        <circle cx="15" cy="10" r="1" fill="currentColor"/>
+      </svg>
+      <span class="logo-text">小羊農場</span>
+    </a>
+
+    <nav class="nav hide-mobile">
+      <a href="/" class="nav-link">首頁</a>
+      <a href="/products" class="nav-link">全部商品</a>
+    </nav>
+
+    <div class="header-actions">
+      <a href="/cart" class="icon-btn cart-btn" aria-label="購物車">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <span class="cart-badge" id="cart-badge" style="display:none">0</span>
+      </a>
+
+      <div id="user-menu-container">
+        <a href="/login" class="btn btn-sm btn-secondary" id="login-btn">登入</a>
+        <div id="user-dropdown" style="display:none" class="user-dropdown">
+          <button id="user-btn" class="icon-btn user-btn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" id="user-dropdown-menu">
+            <a href="/account" class="dropdown-item">我的帳號</a>
+            <a href="/account" class="dropdown-item">我的訂單</a>
+            <a href="#" class="dropdown-item" id="admin-link" style="display:none">管理後台</a>
+            <hr class="divider" style="margin:4px 0" />
+            <button class="dropdown-item" id="logout-btn">登出</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="icon-btn mobile-menu-btn hide-desktop" id="mobile-menu-btn" aria-label="選單">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="mobile-nav" id="mobile-nav">
+    <a href="/" class="mobile-nav-link">首頁</a>
+    <a href="/products" class="mobile-nav-link">全部商品</a>
+    <a href="/cart" class="mobile-nav-link">購物車</a>
+    <a href="/login" class="mobile-nav-link" id="mobile-login-link">登入</a>
+    <a href="/account" class="mobile-nav-link" id="mobile-account-link" style="display:none">我的帳號</a>
+  </div>
+</header>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('shop_token');
+    const userStr = localStorage.getItem('shop_user');
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    // Update UI based on auth state
+    const loginBtn = document.getElementById('login-btn');
+    const userDropdown = document.getElementById('user-dropdown');
+    const userBtn = document.getElementById('user-btn');
+    const dropdownMenu = document.getElementById('user-dropdown-menu');
+    const adminLink = document.getElementById('admin-link');
+    const logoutBtn = document.getElementById('logout-btn');
+    const mobileLoginLink = document.getElementById('mobile-login-link');
+    const mobileAccountLink = document.getElementById('mobile-account-link');
+
+    if (token && user) {
+      if (loginBtn) loginBtn.style.display = 'none';
+      if (userDropdown) userDropdown.style.display = 'block';
+      if (adminLink && user.role === 'admin') adminLink.style.display = 'block';
+      if (mobileLoginLink) mobileLoginLink.style.display = 'none';
+      if (mobileAccountLink) mobileAccountLink.style.display = 'block';
+    }
+
+    // Dropdown toggle
+    if (userBtn && dropdownMenu) {
+      userBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+      });
+      document.addEventListener('click', function() {
+        dropdownMenu.classList.remove('show');
+      });
+    }
+
+    // Logout
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', function() {
+        localStorage.removeItem('shop_token');
+        localStorage.removeItem('shop_user');
+        localStorage.removeItem('shop_cart_count');
+        window.location.href = '/';
+      });
+    }
+
+    // Mobile menu
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const mobileNav = document.getElementById('mobile-nav');
+    if (mobileMenuBtn && mobileNav) {
+      mobileMenuBtn.addEventListener('click', function() {
+        mobileNav.classList.toggle('show');
+      });
+    }
+
+    // Cart badge
+    const badge = document.getElementById('cart-badge');
+    const count = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
+    if (badge && count > 0) {
+      badge.textContent = String(count);
+      badge.style.display = 'flex';
+    }
+  });
+</script>
+
+<style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-weight: 500;
+    font-size: var(--text-lg);
+    letter-spacing: 0.02em;
+  }
+
+  .logo-icon { flex-shrink: 0; }
+
+  .nav {
+    display: flex;
+    gap: var(--sp-8);
+  }
+
+  .nav-link {
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    transition: color var(--duration) var(--ease);
+    letter-spacing: 0.02em;
+  }
+
+  .nav-link:hover { color: var(--c-text); }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    transition: background var(--duration) var(--ease);
+    position: relative;
+  }
+
+  .icon-btn:hover { background: var(--c-bg-alt); }
+
+  .cart-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--c-bg-dark);
+    color: var(--c-text-inverse);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .user-dropdown {
+    position: relative;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: var(--sp-2);
+    background: var(--c-bg);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 160px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: all var(--duration) var(--ease);
+  }
+
+  .dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: var(--sp-2) var(--sp-4);
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    transition: all var(--duration) var(--ease);
+    border: none;
+    background: none;
+  }
+
+  .dropdown-item:hover {
+    color: var(--c-text);
+    background: var(--c-bg-alt);
+  }
+
+  /* Mobile */
+  .mobile-menu-btn { display: none; }
+
+  .mobile-nav {
+    display: none;
+    flex-direction: column;
+    padding: var(--sp-4) var(--sp-6);
+    border-top: 1px solid var(--c-border);
+    background: var(--c-bg);
+  }
+
+  .mobile-nav.show { display: flex; }
+
+  .mobile-nav-link {
+    padding: var(--sp-3) 0;
+    font-size: var(--text-sm);
+    color: var(--c-text-secondary);
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .mobile-nav-link:last-child { border-bottom: none; }
+
+  @media (max-width: 768px) {
+    .hide-mobile { display: none !important; }
+    .hide-desktop { display: flex !important; }
+    .mobile-menu-btn { display: flex; }
+  }
+</style>
