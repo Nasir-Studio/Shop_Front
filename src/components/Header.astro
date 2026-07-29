@@ -23,6 +23,7 @@
 
     <nav class="nav hide-mobile">
       <a href="/" class="nav-link">首頁</a>
+      <a href="/zero-price/" class="nav-link">0元活動</a>
       <a href="/products" class="nav-link">全部商品</a>
     </nav>
 
@@ -80,6 +81,7 @@
 
   <div class="mobile-nav" id="mobile-nav">
     <a href="/" class="mobile-nav-link">首頁</a>
+    <a href="/zero-price/" class="mobile-nav-link">0元活動</a>
     <a href="/products" class="mobile-nav-link">全部商品</a>
     <a href="/cart" class="mobile-nav-link">購物車</a>
     <a href="/login" class="mobile-nav-link" id="mobile-login-link">登入</a>
@@ -90,6 +92,20 @@
 </header>
 
 <script is:inline>
+  // ── Dynamic header height (run immediately, no DOMContentLoaded wait) ──
+  (function() {
+    var header = document.querySelector('.header');
+    if (header) {
+      function setHeaderH() { document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px'); }
+      setHeaderH();
+      if (window.ResizeObserver) {
+        new ResizeObserver(setHeaderH).observe(header);
+      } else {
+        window.addEventListener('resize', setHeaderH);
+      }
+    }
+  })();
+
   document.addEventListener('DOMContentLoaded', function() {
     // Announcement dismiss (7-day expiry)
     var announceClose = document.getElementById('announcement-close');
@@ -99,6 +115,9 @@
         if (banner) banner.style.display = 'none';
         localStorage.setItem('announcement_closed', String(Date.now()));
         document.documentElement.classList.remove('announcement-visible');
+        // Re-measure header height after banner hides
+        var h = document.querySelector('.header');
+        if (h) document.documentElement.style.setProperty('--header-h', h.offsetHeight + 'px');
       });
     }
 
@@ -401,30 +420,32 @@
   }
   .currency-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
   .currency-menu-header {
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
     font-size: var(--text-xs);
     color: var(--c-text-light);
     border-bottom: 1px solid var(--c-border);
+    letter-spacing: 0.05em;
   }
   .currency-option {
     display: flex;
     align-items: center;
-    gap: var(--sp-2);
+    gap: var(--sp-3);
     width: 100%;
-    padding: var(--sp-2) var(--sp-3);
+    padding: var(--sp-2) var(--sp-4);
     border: none;
     background: none;
     cursor: pointer;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--c-text-secondary);
     text-align: left;
     transition: background var(--duration) var(--ease);
   }
   .currency-option:hover { background: var(--c-bg-alt); color: var(--c-text); }
   .currency-option.active { color: var(--c-text); font-weight: 500; }
-  .currency-option-sym { width: 24px; text-align: center; flex-shrink: 0; }
-  .currency-option-label { flex: 1; }
-  .currency-option-check { width: 16px; text-align: center; font-size: 11px; color: var(--c-bg-dark); }
+  .currency-option + .currency-option { border-top: 1px solid var(--c-border); }
+  .currency-option-sym { width: 28px; text-align: center; flex-shrink: 0; font-size: var(--text-sm); }
+  .currency-option-label { flex: 1; letter-spacing: 0.02em; }
+  .currency-option-check { width: 18px; text-align: center; font-size: 12px; color: var(--c-bg-dark); }
 
   .user-dropdown {
     position: relative;

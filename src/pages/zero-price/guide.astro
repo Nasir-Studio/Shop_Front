@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="0元活動須知 — 小羊農場">
+  <Header />
+
+  <main class="pt-header">
+    <div class="container" style="max-width:720px">
+      <nav class="breadcrumb">
+        <a href="/">首頁</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/zero-price/">0元活動</a>
+        <span class="breadcrumb-sep">/</span>
+        <span class="breadcrumb-current">活動須知</span>
+      </nav>
+
+      <div class="page-header">
+        <h1>0元活動須知</h1>
+      </div>
+
+      <div class="content">
+        <section class="content-section">
+          <h2>活動說明</h2>
+          <p>0元活動專區的商品皆以 <strong>0 元</strong> 分享，旨在讓不需要的物品找到新主人，讓資源得以循環。</p>
+        </section>
+
+        <section class="content-section">
+          <h2>運費說明</h2>
+          <p>商品本身免費，如需寄送僅需負擔 7-11 運費 <strong>$75</strong>（運費 $60 + 包材 $15），無任何隱藏費用。</p>
+        </section>
+
+        <section class="content-section">
+          <h2>注意事項</h2>
+          <ul>
+            <li>所有 0 元商品皆為二手物品，請在索取前確認物品狀況</li>
+            <li>每位會員可索取多件商品，運費合併計算</li>
+            <li>商品數量有限，以成功下單順序為準</li>
+            <li>如商品有問題請透過 <a href="mailto:hi@nasirlin.net">hi@nasirlin.net</a> 與我們聯繫</li>
+          </ul>
+        </section>
+
+        <section class="content-section">
+          <h2>如何索取</h2>
+          <ol>
+            <li>瀏覽 <a href="/zero-price/">0元活動專區</a> 挑選喜歡的商品</li>
+            <li>加入購物車並完成結帳</li>
+            <li>選擇 7-11 取貨付款，只需支付運費</li>
+            <li>等待商品送達指定門市</li>
+          </ol>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .breadcrumb { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-6) 0; font-size: var(--text-sm); color: var(--c-text-secondary); }
+  .breadcrumb a { transition: color var(--duration) var(--ease); }
+  .breadcrumb a:hover { color: var(--c-text); }
+  .breadcrumb-sep { color: var(--c-text-light); }
+  .breadcrumb-current { color: var(--c-text); }
+  .page-header { padding: var(--sp-8) 0 var(--sp-8); border-bottom: 1px solid var(--c-border); margin-bottom: var(--sp-8); }
+  .page-header h1 { font-size: var(--text-3xl); font-weight: 400; }
+  .content { padding-bottom: var(--sp-16); }
+  .content-section { margin-bottom: var(--sp-10); }
+  .content-section h2 { font-size: var(--text-lg); font-weight: 500; margin-bottom: var(--sp-4); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--c-border); }
+  .content-section p { font-size: var(--text-sm); color: var(--c-text-secondary); line-height: var(--leading-relaxed); margin-bottom: var(--sp-3); }
+  .content-section strong { color: var(--c-text); font-weight: 500; }
+  .content-section ul, .content-section ol { padding-left: var(--sp-6); }
+  .content-section li { font-size: var(--text-sm); color: var(--c-text-secondary); line-height: var(--leading-relaxed); margin-bottom: var(--sp-2); }
+</style>

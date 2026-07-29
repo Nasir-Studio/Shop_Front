@@ -8,7 +8,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 <BaseLayout>
   <Header />
 
-  <main>
+  <main class="pt-header">
     <!-- Hero -->
     <section class="hero">
       <div class="container hero-inner">
@@ -81,8 +81,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
       if (!data.items || !data.items.length) {
         container.innerHTML = '<div class="text-center text-secondary" style="grid-column:1/-1;padding:var(--sp-10)">暫無商品</div>';
-        return;
-      }
+      } else {
 
       container.innerHTML = data.items.map(function(p) {
         var priceHtml = p.sale_price
@@ -100,6 +99,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           '<div class="product-secondhand-note">所有商品皆為二手，請確認狀況後索取</div>' +
           '</div></a>';
       }).join('');
+      }
     } catch (e) {
       var grid = document.getElementById('featured-products');
       grid.innerHTML = '<div class="text-center text-secondary" style="grid-column:1/-1;padding:var(--sp-10)">目前網路出現狀況中，請稍後再試</div>';
@@ -139,7 +139,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
 <style>
   .hero {
-    padding: var(--sp-24) 0 var(--sp-16);
+    padding: var(--sp-10) 0 var(--sp-16);
     text-align: center;
     border-bottom: 1px solid var(--c-border);
   }

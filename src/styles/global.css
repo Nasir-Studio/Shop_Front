@@ -283,7 +283,7 @@ select.form-input {
 .mb-8 { margin-bottom: var(--sp-8); }
 .py-8 { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .py-16 { padding-top: var(--sp-16); padding-bottom: var(--sp-16); }
-.pt-header { padding-top: 120px; }
+.pt-header { padding-top: var(--header-h, 120px); }
 
 /* ── Badges ───────────────────────────────────────────────────── */
 .badge {
