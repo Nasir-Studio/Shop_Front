@@ -6,11 +6,27 @@ interface Props {
   sale_price: number | null;
   image_url: string;
   category_name: string | null;
+  condition: string;
 }
 
-const { name, slug, price, sale_price, image_url, category_name } = Astro.props;
+const { name, slug, price, sale_price, image_url, category_name, condition } = Astro.props;
 const displayPrice = sale_price ?? price;
 const hasDiscount = sale_price !== null && sale_price < price;
+
+const conditionLabels: Record<string, string> = {
+  new: '全新',
+  like_new: '近乎全新',
+  used: '二手',
+  refurbished: '整新品',
+};
+const conditionLabel = conditionLabels[condition] || condition;
+const conditionNotes: Record<string, string> = {
+  new: '全新商品，原廠包裝未拆封',
+  like_new: '近乎全新，極輕微使用痕跡',
+  used: '此為二手商品，請確認狀況後索取',
+  refurbished: '整新品，功能經檢測正常',
+};
+const conditionNote = conditionNotes[condition] || '請確認商品狀況後索取';
 ---
 
 <a href={`/products/${slug}`} class="product-card card">
@@ -27,7 +43,7 @@ const hasDiscount = sale_price !== null && sale_price < price;
       </div>
     )}
     {hasDiscount && <span class="product-sale-badge">SALE</span>}
-    <span class="product-secondhand-badge">二手</span>
+    <span class="product-condition-badge" data-condition={condition}>{conditionLabel}</span>
   </div>
   <div class="product-info">
     {category_name && <span class="product-category">{category_name}</span>}
@@ -40,7 +56,7 @@ const hasDiscount = sale_price !== null && sale_price < price;
         <span class="product-original-price" data-ntd={price}>NT$${Math.round(price).toLocaleString()}</span>
       )}
     </div>
-    <div class="product-secondhand-note">所有商品皆為二手，請確認狀況後索取</div>
+    <div class="product-condition-note">{conditionNote}</div>
   </div>
 </a>
 
@@ -91,7 +107,7 @@ const hasDiscount = sale_price !== null && sale_price < price;
     color: var(--c-text-inverse);
   }
 
-  .product-secondhand-badge {
+  .product-condition-badge {
     position: absolute;
     bottom: var(--sp-3);
     right: var(--sp-3);
@@ -99,10 +115,27 @@ const hasDiscount = sale_price !== null && sale_price < price;
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.04em;
+    border-radius: 2px;
+  }
+  .product-condition-badge[data-condition="new"] {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+  .product-condition-badge[data-condition="like_new"] {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+  }
+  .product-condition-badge[data-condition="used"] {
     background: #fefce8;
     color: #a16207;
     border: 1px solid #fde68a;
-    border-radius: 2px;
+  }
+  .product-condition-badge[data-condition="refurbished"] {
+    background: #f3e8ff;
+    color: #6b21a8;
+    border: 1px solid #e9d5ff;
   }
 
   .product-info {
@@ -139,7 +172,7 @@ const hasDiscount = sale_price !== null && sale_price < price;
     font-weight: 500;
   }
 
-  .product-secondhand-note {
+  .product-condition-note {
     font-size: 10px;
     color: var(--c-text-light);
     margin-top: var(--sp-2);

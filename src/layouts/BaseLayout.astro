@@ -31,6 +31,9 @@ const {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://shopbackend.nsir.uk" />
+  <link rel="dns-prefetch" href="https://shopbackend.nsir.uk" />
+  <link rel="preconnect" href="https://open.er-api.com" />
 
   <!-- Sync auth state — runs before first paint, eliminates flicker -->
   <script is:inline>
@@ -266,6 +269,48 @@ const {
         // Periodic anti-debug check (runs once)
         setTimeout(blockDebugger, 1000);
       }
+    })();
+  </script>
+
+  <!-- ── API Cache: stale-while-revalidate ── -->
+  <script is:inline>
+    (function() {
+      var CACHE_PREFIX = 'shop_cache_';
+      var CACHE_TTL = 30000; // 30s fresh, then serve stale + revalidate
+      window.__apiCache = {
+        get: function(key) {
+          try {
+            var raw = localStorage.getItem(CACHE_PREFIX + key);
+            if (!raw) return null;
+            var entry = JSON.parse(raw);
+            entry.stale = Date.now() - entry.ts > CACHE_TTL;
+            return entry;
+          } catch(e) { return null; }
+        },
+        set: function(key, data) {
+          try {
+            localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data: data, ts: Date.now() }));
+          } catch(e) {}
+        },
+        // Fetch with stale-while-revalidate: return cached instantly, refresh in background
+        fetch: async function(url, key, options) {
+          var cached = window.__apiCache.get(key || url);
+          if (cached && !cached.stale) return cached.data; // fresh
+          if (cached) {
+            // stale: revalidate in background
+            var p = fetch(url, options || {}).then(function(r) { if (r.ok) return r.json(); throw new Error(); })
+              .then(function(d) { window.__apiCache.set(key || url, d); return d; })
+              .catch(function(){});
+            return cached.data; // return stale immediately
+          }
+          // no cache: fetch and wait
+          var res = await fetch(url, options || {});
+          if (!res.ok) throw new Error('API error');
+          var data = await res.json();
+          window.__apiCache.set(key || url, data);
+          return data;
+        }
+      };
     })();
   </script>
 </head>

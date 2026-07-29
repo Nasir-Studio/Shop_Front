@@ -29,6 +29,7 @@ export interface Product {
   image_url: string;
   category_id: number | null;
   category_name: string | null;
+  condition: string;
   is_active: boolean;
   is_featured: boolean;
   created_at: string;
