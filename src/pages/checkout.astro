@@ -221,7 +221,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     function renderSummary() {
       var itemsHtml = cart.items.map(function(item) {
         var displayPrice = item.sale_price || item.price;
-        return '<div class="summary-item"><span>' + item.product_name + ' × ' + item.quantity + '</span><span>' + _fmt(item.subtotal) + '</span></div>';
+        return '<div class="summary-item"><span>' + escHtml(item.product_name) + ' × ' + item.quantity + '</span><span>' + _fmt(item.subtotal) + '</span></div>';
       }).join('');
       var totalBeforeShip = cart.total;
       var grandTotal = totalBeforeShip + SHIPPING_FEE;

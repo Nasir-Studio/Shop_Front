@@ -203,7 +203,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       var res = await fetch(API_URL + '/api/orders', {
         headers: { 'Authorization': 'Bearer ' + token },
       });
-      if (!res.ok) throw new Error();
+      if (res.status === 401) {
+        localStorage.removeItem('shop_token');
+        localStorage.removeItem('shop_user');
+        container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">登入已過期，請<a href="/login/" style="color:var(--c-primary)">重新登入</a></div>';
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       var orders = await res.json();
 
       if (!orders.length) {
@@ -219,7 +225,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         var storeInfo = '';
         if (o.shipping_method === 'store_pickup' && o.store_name) {
           var stLabel = storeTypeLabels[o.store_type] || o.store_type;
-          storeInfo = stLabel + ' ' + o.store_name;
+          storeInfo = stLabel + ' ' + window.escHtml(o.store_name);
         }
         var isExpanded = expandedOrderId === o.id;
         return '<div class="order-item' + (isExpanded ? ' expanded' : '') + '" data-id="' + o.id + '">' +
@@ -250,7 +256,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         loadOrderDetail(expandedOrderId);
       }
     } catch (e) {
-      container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">目前網路出現狀況中，請稍後再試</div>';
+      if (e instanceof TypeError) {
+        container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">目前網路出現狀況中，請稍後再試</div>';
+      } else {
+        container.innerHTML = '<div class="text-center text-secondary" style="padding:var(--sp-8)">系統忙碌中，請稍後再試</div>';
+      }
     }
   }
 
@@ -288,8 +298,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     fetch(API_URL + '/api/orders/' + orderId, {
       headers: { 'Authorization': 'Bearer ' + token },
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (r.status === 401) {
+        localStorage.removeItem('shop_token');
+        localStorage.removeItem('shop_user');
+        detailEl.innerHTML = '<div class="detail-loading error">登入已過期，請重新整理頁面後重新登入</div>';
+        return null;
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function(order) {
+      if (!order) return;
       var payLabel = paymentLabels[order.payment_method] || order.payment_method;
       var shipLabel = shippingLabels[order.shipping_method] || '';
       var stLabel = storeTypeLabels[order.store_type] || order.store_type;
@@ -299,12 +319,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       var itemsHtml = order.items.map(function(item) {
         var img = item.product_image
-          ? '<img src="' + item.product_image + '" alt="' + item.product_name + '" class="detail-item-img" />'
+          ? '<img src="' + item.product_image + '" alt="' + window.escHtml(item.product_name) + '" class="detail-item-img" />'
           : '<div class="detail-item-img-placeholder"></div>';
         return '<div class="detail-item">' +
           img +
           '<div class="detail-item-info">' +
-          '<span class="detail-item-name">' + item.product_name + '</span>' +
+          '<span class="detail-item-name">' + window.escHtml(item.product_name) + '</span>' +
           '<span class="detail-item-qty">x ' + item.quantity + '</span>' +
           '</div>' +
           '<span class="detail-item-price">' + _fmt(item.subtotal) + '</span>' +
@@ -315,16 +335,16 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (order.shipping_method === 'store_pickup' && order.store_name) {
         shippingHtml =
           '<div class="detail-section"><h4>超商取貨資訊</h4>' +
-          '<div class="detail-row"><span>門市</span><span>' + stLabel + ' ' + order.store_name + ' (' + order.store_code + ')</span></div>' +
-          '<div class="detail-row"><span>收件人</span><span>' + order.shipping_name + '</span></div>' +
-          '<div class="detail-row"><span>電話</span><span>' + order.shipping_phone + '</span></div>' +
+          '<div class="detail-row"><span>門市</span><span>' + stLabel + ' ' + window.escHtml(order.store_name) + ' (' + window.escHtml(order.store_code) + ')</span></div>' +
+          '<div class="detail-row"><span>收件人</span><span>' + window.escHtml(order.shipping_name) + '</span></div>' +
+          '<div class="detail-row"><span>電話</span><span>' + window.escHtml(order.shipping_phone) + '</span></div>' +
           '</div>';
       } else {
         shippingHtml =
           '<div class="detail-section"><h4>宅配資訊</h4>' +
-          '<div class="detail-row"><span>收件人</span><span>' + order.shipping_name + '</span></div>' +
-          '<div class="detail-row"><span>電話</span><span>' + order.shipping_phone + '</span></div>' +
-          '<div class="detail-row"><span>地址</span><span>' + order.shipping_address + '</span></div>' +
+          '<div class="detail-row"><span>收件人</span><span>' + window.escHtml(order.shipping_name) + '</span></div>' +
+          '<div class="detail-row"><span>電話</span><span>' + window.escHtml(order.shipping_phone) + '</span></div>' +
+          '<div class="detail-row"><span>地址</span><span>' + window.escHtml(order.shipping_address) + '</span></div>' +
           '</div>';
       }
 
@@ -346,11 +366,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
       statusHtml += '</div>';
       if (order.cancel_reason) {
-        statusHtml += '<div class="cancel-reason">取消原因：' + order.cancel_reason + '</div>';
+        statusHtml += '<div class="cancel-reason">取消原因：' + window.escHtml(order.cancel_reason) + '</div>';
       }
       statusHtml += '</div>';
 
-      var noteHtml = order.note ? '<div class="detail-section"><h4>備註</h4><p class="detail-note">' + order.note + '</p></div>' : '';
+      var noteHtml = order.note ? '<div class="detail-section"><h4>備註</h4><p class="detail-note">' + window.escHtml(order.note) + '</p></div>' : '';
 
       detailEl.innerHTML =
         '<div class="detail-inner">' +

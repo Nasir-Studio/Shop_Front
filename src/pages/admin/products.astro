@@ -180,8 +180,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           return '<tr>' +
             '<td>' + p.id + '</td>' +
             '<td>' + imgHtml + '</td>' +
-            '<td>' + p.name + '</td>' +
-            '<td>' + (p.category_name || '-') + '</td>' +
+            '<td>' + escHtml(p.name) + '</td>' +
+            '<td>' + escHtml(p.category_name || '-') + '</td>' +
             '<td>' + priceHtml + '</td>' +
             '<td>' + p.stock + '</td>' +
             '<td><span class="badge' + (p.is_active ? '' : ' badge-dark') + '">' + (p.is_active ? '上架中' : '已下架') + '</span></td>' +

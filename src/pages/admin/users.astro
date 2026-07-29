@@ -76,8 +76,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             : '-';
           return '<tr>' +
             '<td>' + u.id + '</td>' +
-            '<td>' + u.email + '</td>' +
-            '<td>' + (u.name || '-') + '</td>' +
+            '<td>' + escHtml(u.email) + '</td>' +
+            '<td>' + escHtml(u.name || '-') + '</td>' +
             '<td>' + roleLabel + '</td>' +
             '<td>' + date + '</td>' +
             '<td>' + activeLabel + '</td>' +

@@ -117,9 +117,9 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             : '<span class="status"><span class="status-dot" style="background:#e6a817"></span>待回覆</span>';
           return '<tr>' +
             '<td>' + m.id + '</td>' +
-            '<td>' + (m.name || m.email) + '</td>' +
-            '<td>' + m.email + '</td>' +
-            '<td>' + (m.subject || '-') + '</td>' +
+            '<td>' + escHtml(m.name || m.email) + '</td>' +
+            '<td>' + escHtml(m.email) + '</td>' +
+            '<td>' + escHtml(m.subject || '-') + '</td>' +
             '<td>' + status + '</td>' +
             '<td>' + date + '</td>' +
             '<td><button class="btn btn-ghost btn-sm" onclick="openReply(' + m.id + ')">' + (m.reply ? '檢視' : '回覆') + '</button></td>' +

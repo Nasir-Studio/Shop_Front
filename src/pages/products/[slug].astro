@@ -58,7 +58,7 @@ export function getStaticPaths() {
 
       function imgHtml(url, alt) {
         return url
-          ? '<img src="' + url + '" alt="' + alt + '" loading="lazy" />'
+          ? '<img src="' + url + '" alt="' + escHtml(alt) + '" loading="lazy" />'
           : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%"><svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>';
       }
 
@@ -68,7 +68,7 @@ export function getStaticPaths() {
         for (var idx = 0; idx < images.length; idx++) {
           var im = images[idx];
           thumbsHtml += '<div class="thumbnail-item' + (idx === coverIdx ? ' active' : '') + '" onclick="switchMainImage(\'' + im.image_url.replace(/'/g, "\\'") + '\', this)">' +
-            '<img src="' + im.image_url + '" alt="' + p.name + '" loading="lazy" />' +
+            '<img src="' + im.image_url + '" alt="' + escHtml(p.name) + '" loading="lazy" />' +
             (im.is_cover ? '<span class="thumb-cover-badge">封面</span>' : '') +
             '</div>';
         }
@@ -86,12 +86,12 @@ export function getStaticPaths() {
       container.innerHTML = '<nav class="breadcrumb">' +
         '<a href="/">首頁</a><span class="breadcrumb-sep">/</span>' +
         '<a href="/products/">全部商品</a><span class="breadcrumb-sep">/</span>' +
-        '<span class="breadcrumb-current">' + p.name + '</span></nav>' +
+        '<span class="breadcrumb-current">' + escHtml(p.name) + '</span></nav>' +
         '<div class="product-detail">' +
         '<div class="product-gallery"><div class="product-main-image" id="main-image-wrap">' + imgHtml(mainImgUrl, p.name) + '</div>' + thumbsHtml + '</div>' +
         '<div class="product-info">' +
-        (p.category_name ? '<span class="product-category">' + p.category_name + '</span>' : '') +
-        '<h1 class="product-name">' + p.name + '</h1>' +
+        (p.category_name ? '<span class="product-category">' + escHtml(p.category_name) + '</span>' : '') +
+        '<h1 class="product-name">' + escHtml(p.name) + '</h1>' +
         '<div class="product-pricing">' + priceHtml + '</div>' +
         '<div class="product-meta"><div class="meta-item"><span class="meta-label">庫存</span>' + stockHtml + '</div></div>' +
         (p.stock > 0 ?
@@ -102,7 +102,7 @@ export function getStaticPaths() {
           '<button class="qty-btn" id="qty-plus">+</button></div>' +
           '<button class="btn btn-primary btn-lg btn-block add-to-cart-btn" id="add-to-cart-btn" data-product-id="' + p.id + '" data-product-stock="' + p.stock + '">加入購物車</button>' +
           '</div>' : '') +
-        '<div class="product-description"><h3>商品說明</h3><p>' + (p.description || '暫無說明') + '</p></div>' +
+        '<div class="product-description"><h3>商品說明</h3><p>' + escHtml(p.description || '暫無說明') + '</p></div>' +
         '</div></div>';
 
       var minusBtn = document.getElementById('qty-minus');
