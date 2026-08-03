@@ -1,4 +1,4 @@
-var CACHE = 'shop-cache-v2';
+var CACHE = 'shop-cache-v4';
 var STATIC_URLS = [
   '/',
   '/manifest.json',
@@ -112,7 +112,8 @@ self.addEventListener('push', function(event) {
     data: { url: data.url || '/', ts: Date.now(), title: title, body: body },
   };
   event.waitUntil(
-    saveNotif({ title: title, body: body, url: data.url || '/', ts: Date.now(), read: false })
+    saveNotification({ title: title, body: body, url: data.url || '/', ts: Date.now(), read: false })
+      .catch(function() { /* storage failure must not block notification */ })
       .then(function() {
         return self.registration.showNotification(title, options);
       })

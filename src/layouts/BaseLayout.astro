@@ -8,6 +8,11 @@ const {
   title = '小羊農場 — 物品價值，淋漓盡致',
   description = '小羊農場，讓每件物品的價值淋漓盡致。',
 } = Astro.props;
+
+// PWA is only for the admin backend (/admin). The public storefront should
+// NOT be installable as a PWA. iOS reads start_url from the manifest, so the
+// manifest must point at /admin — and only be injected on /admin pages.
+const isAdminRoute = Astro.url.pathname.startsWith('/admin');
 ---
 
 <!DOCTYPE html>
@@ -22,12 +27,17 @@ const {
   <meta property="og:url" content="https://shop.nsir.uk" />
   <title>{title}</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#1a1a1a" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-  <meta name="apple-mobile-web-app-title" content="小羊農場" />
+  {isAdminRoute && (
+    <>
+      <link rel="manifest" href="/manifest.json" />
+      <meta name="theme-color" content="#1a1a1a" />
+      <meta name="apple-mobile-web-app-capable" content="yes" />
+      <meta name="mobile-web-app-capable" content="yes" />
+      <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+      <meta name="apple-mobile-web-app-title" content="小羊農場" />
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    </>
+  )}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet" />
@@ -394,7 +404,7 @@ const {
         var token = localStorage.getItem('shop_token');
         if (!token) return Promise.reject(new Error('未登入'));
         if (!('serviceWorker' in navigator)) return Promise.reject(new Error('瀏覽器不支援推播'));
-        return navigator.serviceWorker.register('/sw.js')
+        return navigator.serviceWorker.register('/sw.js?v=4', { updateViaCache: 'none' })
           .then(function() { return navigator.serviceWorker.ready; })
           .then(function(reg) {
             if (Notification.permission === 'denied') {
@@ -443,13 +453,17 @@ const {
       }
     };
 
-    // Register service worker (for PWA + push)
+    // Register service worker (for PWA + push) — only on /admin pages,
+    // so the public storefront stays a plain website, not a PWA.
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function(err) {
-          console.warn('SW registration failed:', err);
+      var isAdminPath = window.location.pathname.indexOf('/admin') === 0;
+      if (isAdminPath) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js?v=4', { updateViaCache: 'none' }).catch(function(err) {
+            console.warn('SW registration failed:', err);
+          });
         });
-      });
+      }
     }
   </script>
 </body>

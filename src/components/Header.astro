@@ -59,7 +59,7 @@
         <div class="notif-menu" id="notif-menu">
           <div class="notif-menu-header">
             <span>通知中心</span>
-            <button class="notif-toggle" id="notif-toggle" style="display:none">開啟推播</button>
+            <span class="notif-status" id="notif-status"></span>
           </div>
           <div class="notif-list" id="notif-list">
             <div class="notif-empty">載入中…</div>
@@ -249,13 +249,13 @@
     var notifMenu = document.getElementById('notif-menu');
     var notifBadge = document.getElementById('notif-badge');
     var notifList = document.getElementById('notif-list');
-    var notifToggle = document.getElementById('notif-toggle');
 
     if (notifWrap) {
       var isAdmin = false;
       try { isAdmin = (JSON.parse(localStorage.getItem('shop_user') || '{}').role === 'admin'); } catch(e) {}
       if (isAdmin && window.__push) {
         notifWrap.style.display = 'block';
+        renderNotifStatus();
         loadNotifHistory();
         updateNotifBadge();
       }
@@ -325,19 +325,21 @@
       });
     }
 function renderNotifStatus() {
-      if (!notifToggle || !window.__push) return;
+      if (!notifWrap || !window.__push) return;
       var p = window.__push;
       p.getSubscription().then(function(sub) {
+        var statusEl = document.getElementById('notif-status');
         if (sub) {
-          notifToggle.style.display = 'inline-block';
-          notifToggle.textContent = '關閉推播';
-          notifToggle.dataset.act = 'unsub';
+          // 已訂閱 → 鈴鐺變紅（有開）
+          notifWrap.classList.add('push-on');
+          if (statusEl) { statusEl.textContent = '推播已開啟'; statusEl.style.display = ''; }
         } else if (p.permission() === 'denied' || !p.supported()) {
-          notifToggle.style.display = 'none';
+          notifWrap.classList.remove('push-on');
+          if (statusEl) { statusEl.textContent = '推播已封鎖'; statusEl.style.display = ''; }
         } else {
-          notifToggle.style.display = 'inline-block';
-          notifToggle.textContent = '開啟推播';
-          notifToggle.dataset.act = 'sub';
+          // 未訂閱 → 鈴鐺灰色，點鈴鐺即訂閱
+          notifWrap.classList.remove('push-on');
+          if (statusEl) { statusEl.textContent = '點鈴鐺開啟推播'; statusEl.style.display = ''; }
         }
       });
     }
@@ -377,30 +379,34 @@ function renderNotifStatus() {
       loadNotifHistory();
       notifMenu.classList.add('show');
     }
-    if (notifToggle) {
-      notifToggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var act = notifToggle.dataset.act;
-        var p = window.__push;
-        if (!p) return;
-        if (act === 'sub') {
-          p.subscribe().then(function() {
-            renderNotifStatus();
-          }).catch(function(err) {
-            alert('開啟推播失敗：' + (err.message || '未知錯誤'));
-            renderNotifStatus();
-          });
-        } else if (act === 'unsub') {
-          p.unsubscribe().then(function() {
-            renderNotifStatus();
-          }).catch(function() {});
-        }
-      });
-    }
+    // 點鈴鐺：未訂閱 → 直接訂閱並變色；已訂閱 → 開啟通知中心
+    var subscribing = false;
     if (notifBtn) {
       notifBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        openNotifCenter();
+        var p = window.__push;
+        if (!p || subscribing) return;
+        p.getSubscription().then(function(sub) {
+          if (sub) {
+            openNotifCenter();
+            return;
+          }
+          // 未訂閱 → 使用者手勢內直接訂閱（iOS 需要）
+          if (p.needsInstall()) {
+            alert('要在 iPhone 接收推播：請先點 Safari 的「分享」→「加入主畫面」，再從主畫面開啟後點鈴鐺');
+            return;
+          }
+          subscribing = true;
+          p.subscribe().then(function() {
+            subscribing = false;
+            renderNotifStatus();
+            openNotifCenter();
+          }).catch(function(err) {
+            subscribing = false;
+            alert('開啟推播失敗：' + (err.message || '未知錯誤'));
+            renderNotifStatus();
+          });
+        });
       });
       document.addEventListener('click', function() {
         if (notifMenu) notifMenu.classList.remove('show');
@@ -649,6 +655,9 @@ function renderNotifStatus() {
 
   /* ── Notification bell ── */
   .notif-wrap { position: relative; }
+  /* 鈴鐺未開推播：灰色；已開：紅色（color 會套用到 svg stroke） */
+  .notif-btn { color: var(--c-text-secondary); transition: color var(--duration) var(--ease); }
+  .notif-wrap.push-on .notif-btn { color: var(--c-error); }
   .notif-badge {
     position: absolute;
     top: 2px;
@@ -694,18 +703,6 @@ function renderNotifStatus() {
     border-bottom: 1px solid var(--c-border);
   }
   .notif-status { font-size: var(--text-xs); font-weight: 400; color: var(--c-text-light); }
-  .notif-toggle {
-    padding: 3px 10px;
-    font-size: var(--text-xs);
-    font-weight: 500;
-    border: 1px solid var(--c-text);
-    border-radius: 999px;
-    background: none;
-    color: var(--c-text);
-    cursor: pointer;
-    transition: all var(--duration) var(--ease);
-  }
-  .notif-toggle:hover { background: var(--c-bg-dark); color: var(--c-text-inverse); }
   .notif-list { max-height: 320px; overflow-y: auto; }
   .notif-empty { padding: var(--sp-6) var(--sp-4); text-align: center; font-size: var(--text-sm); color: var(--c-text-light); }
   .notif-install {
