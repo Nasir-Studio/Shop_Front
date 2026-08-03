@@ -20,6 +20,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         <a href="/admin" class="admin-nav-link">統計總覽</a>
         <a href="/admin/products" class="admin-nav-link">商品管理</a>
         <a href="/admin/orders" class="admin-nav-link active">訂單管理</a>
+        <a href="/admin/coupons" class="admin-nav-link">優惠券管理</a>
         <a href="/admin/users" class="admin-nav-link">會員管理</a>
         <a href="/admin/messages" class="admin-nav-link">訊息管理</a>
       </nav>
@@ -86,7 +87,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             '<td>NT$' + o.total.toLocaleString() + '</td>' +
             '<td><span class="status status-' + o.status + '"><span class="status-dot"></span>' + statusMap[o.status] + '</span></td>' +
             '<td>' + date + '</td>' +
-            '<td><button class="btn btn-ghost btn-sm" onclick="toggleDetail(' + o.id + ')">明細</button></td>' +
+            '<td><button class="btn btn-ghost btn-sm" onclick="toggleDetail(' + o.id + ')">明細</button> ' +
+            '<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteOrder(' + o.id + ')">刪除</button></td>' +
             '</tr>' +
             '<tr class="order-detail" id="detail-' + o.id + '" style="display:none">' +
             '<td colspan="7">' +
@@ -97,8 +99,11 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
                   '<p>' + escHtml(o.shipping_name) + ' / ' + escHtml(o.shipping_phone || '') + '</p>' +
                   (o.shipping_address ? '<p>' + escHtml(o.shipping_address) + '</p>' : '') +
                   (o.shipping_method === 'store_pickup' ? '<p>超取：' + escHtml(o.store_name || '') + ' (' + escHtml(o.store_code || '') + ')</p>' : '') +
+                  (o.shipping_method === 'meetup' ? '<p>配送方式：面交自取（免運）</p>' : '') +
+                  (o.shipping_method === 'virtual' ? '<p>配送方式：虛擬商品（免運）</p>' : '') +
                   '<p>付款方式：' + paymentLabel(o.payment_method) + '</p>' +
                   '<p>運費：NT$' + (o.shipping_fee || 0).toLocaleString() + '</p>' +
+                  (o.discount_amount > 0 ? '<p>優惠折扣：-NT$' + o.discount_amount.toLocaleString() + '（' + escHtml(o.coupon_code) + '）</p>' : '') +
                 '</div>' +
                 '<div class="detail-section">' +
                   '<strong>客戶備註</strong>' +
@@ -162,6 +167,16 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         alert('備註已儲存');
       } catch (err) {
         alert('儲存失敗：' + err.message);
+      }
+    };
+
+    window.deleteOrder = async function(id) {
+      if (!confirm('確定要刪除訂單 #' + id + ' 嗎？此動作無法復原！')) return;
+      try {
+        await api('/api/admin/orders/' + id, { method: 'DELETE' });
+        loadOrders();
+      } catch (err) {
+        alert('刪除失敗：' + err.message);
       }
     };
 
@@ -232,6 +247,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   }
   .admin-note-input { width: 100%; margin-bottom: var(--sp-2); }
   .status-select { width: 100%; }
+  .btn-danger { color: var(--c-danger) !important; }
+  .btn-danger:hover { background: rgba(220,38,38,0.08) !important; }
 
   @media (max-width: 768px) {
     .detail-grid { grid-template-columns: 1fr; }

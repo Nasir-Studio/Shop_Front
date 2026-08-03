@@ -276,7 +276,7 @@ const {
   <script is:inline>
     (function() {
       var CACHE_PREFIX = 'shop_cache_';
-      var CACHE_TTL = 30000; // 30s fresh, then serve stale + revalidate
+      var CACHE_TTL = 10000; // 10s fresh, then refetch and wait
       window.__apiCache = {
         get: function(key) {
           try {
@@ -297,11 +297,17 @@ const {
           var cached = window.__apiCache.get(key || url);
           if (cached && !cached.stale) return cached.data; // fresh
           if (cached) {
-            // stale: revalidate in background
-            var p = fetch(url, options || {}).then(function(r) { if (r.ok) return r.json(); throw new Error(); })
-              .then(function(d) { window.__apiCache.set(key || url, d); return d; })
-              .catch(function(){});
-            return cached.data; // return stale immediately
+            // stale: refetch and wait so the current page shows fresh data;
+            // fall back to stale only when the network is unavailable
+            try {
+              var res = await fetch(url, options || {});
+              if (!res.ok) throw new Error();
+              var fresh = await res.json();
+              window.__apiCache.set(key || url, fresh);
+              return fresh;
+            } catch (e) {
+              return cached.data;
+            }
           }
           // no cache: fetch and wait
           var res = await fetch(url, options || {});

@@ -1,0 +1,346 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import AdminGuard from '../../components/AdminGuard.astro';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+---
+
+<BaseLayout title="優惠券管理 — 小羊農場">
+  <AdminGuard />
+  <Header />
+
+  <main class="pt-header">
+    <div class="container">
+      <div class="page-header">
+        <h1>管理後台</h1>
+      </div>
+
+      <nav class="admin-nav">
+        <a href="/admin" class="admin-nav-link">統計總覽</a>
+        <a href="/admin/products" class="admin-nav-link">商品管理</a>
+        <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+        <a href="/admin/coupons" class="admin-nav-link active">優惠券管理</a>
+        <a href="/admin/users" class="admin-nav-link">會員管理</a>
+        <a href="/admin/messages" class="admin-nav-link">訊息管理</a>
+      </nav>
+
+      <div class="admin-toolbar">
+        <button class="btn btn-primary" id="add-coupon-btn">＋ 新增優惠券</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="coupons-table">
+          <thead>
+            <tr>
+              <th style="width:50px">ID</th>
+              <th>優惠碼</th>
+              <th>類型</th>
+              <th>折扣</th>
+              <th>最低消費</th>
+              <th>使用次數</th>
+              <th>有效期間</th>
+              <th>狀態</th>
+              <th style="width:140px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="coupons-tbody">
+            <tr><td colspan="9" class="text-center text-secondary" style="padding:var(--sp-8)">載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Coupon Form Modal -->
+  <div id="coupon-modal" class="modal-overlay" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">新增優惠券</h2>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <form id="coupon-form" onsubmit="return false">
+        <input type="hidden" id="edit-id" value="">
+        <div class="modal-body">
+          <div class="form-row">
+            <label class="form-label">優惠碼 *</label>
+            <input type="text" id="form-code" class="input" required placeholder="例如 WELCOME10（將自動轉為大寫）">
+          </div>
+          <div class="form-row">
+            <label class="form-label">說明</label>
+            <input type="text" id="form-desc" class="input" placeholder="選填">
+          </div>
+          <div class="form-row-group">
+            <div class="form-row">
+              <label class="form-label">折扣類型</label>
+              <select id="form-discount-type" class="input">
+                <option value="fixed">固定金額</option>
+                <option value="percent">百分比</option>
+                <option value="shipping">免運費</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label class="form-label">折扣值</label>
+              <input type="number" id="form-discount-value" class="input" min="0" step="0.01" required>
+            </div>
+          </div>
+          <div class="form-row-group">
+            <div class="form-row">
+              <label class="form-label">最低消費 (NT$)</label>
+              <input type="number" id="form-min-subtotal" class="input" min="0" value="0">
+            </div>
+            <div class="form-row">
+              <label class="form-label">折扣上限 (NT$，選填)</label>
+              <input type="number" id="form-max-discount" class="input" min="0" step="0.01" placeholder="不限">
+            </div>
+          </div>
+          <div class="form-row-group">
+            <div class="form-row">
+              <label class="form-label">總使用上限（選填）</label>
+              <input type="number" id="form-usage-limit" class="input" min="1" placeholder="不限">
+            </div>
+            <div class="form-row">
+              <label class="form-label">每人使用上限</label>
+              <input type="number" id="form-per-user-limit" class="input" min="1" value="1">
+            </div>
+          </div>
+          <div class="form-row-group">
+            <div class="form-row">
+              <label class="form-label">開始時間</label>
+              <input type="datetime-local" id="form-valid-from" class="input">
+            </div>
+            <div class="form-row">
+              <label class="form-label">結束時間</label>
+              <input type="datetime-local" id="form-valid-until" class="input">
+            </div>
+          </div>
+          <div class="form-row-checkbox">
+            <label><input type="checkbox" id="form-active" checked> 啟用</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="modal-submit">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <Footer />
+</BaseLayout>
+
+<script is:inline>
+  var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+  var editingCouponId = null;
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    if (!window.__requireAdmin()) return;
+    const token = localStorage.getItem('shop_token');
+
+    async function api(path, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+      if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(opts.body);
+      }
+      const res = await fetch(API_URL + path, opts);
+      if (!res.ok) { const err = await res.json().catch(() => ({detail: '請求失敗'})); throw new Error(err.detail || '請求失敗'); }
+      return res.json();
+    }
+
+    function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function hideModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function fmtMoney(v) {
+      if (v == null) return '';
+      return 'NT$' + Number(v).toLocaleString();
+    }
+
+    function fmtDate(s) {
+      if (!s) return '不限';
+      var d = new Date(s);
+      if (isNaN(d.getTime())) return '不限';
+      return d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function toLocalInput(iso) {
+      if (!iso) return '';
+      return String(iso).slice(0, 16);
+    }
+
+    function toIso(localStr) {
+      return localStr ? localStr : null;
+    }
+
+    async function loadCoupons() {
+      try {
+        const coupons = await api('/api/admin/coupons');
+        const tbody = document.getElementById('coupons-tbody');
+        if (!coupons.length) {
+          tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary" style="padding:var(--sp-8)">尚無優惠券，點擊「新增優惠券」開始</td></tr>';
+          return;
+        }
+        tbody.innerHTML = coupons.map(function(c) {
+          var typeLabel = c.discount_type === 'shipping' ? '免運費'
+            : (c.discount_type === 'percent' ? '百分比' : '固定金額');
+          var discountLabel = c.discount_type === 'shipping'
+            ? '本單免運'
+            : (c.discount_type === 'percent'
+              ? (c.discount_value + '%' + (c.max_discount != null ? '（上限 ' + fmtMoney(c.max_discount) + '）' : ''))
+              : fmtMoney(c.discount_value));
+          var usage = c.usage_limit != null ? (c.used_count + ' / ' + c.usage_limit) : String(c.used_count);
+          var period = fmtDate(c.valid_from) + ' ~ ' + fmtDate(c.valid_until);
+          return '<tr>' +
+            '<td>' + c.id + '</td>' +
+            '<td><strong>' + escHtml(c.code) + '</strong>' + (c.description ? '<div class="text-secondary text-sm">' + escHtml(c.description) + '</div>' : '') + '</td>' +
+            '<td>' + typeLabel + '</td>' +
+            '<td>' + discountLabel + '</td>' +
+            '<td>' + fmtMoney(c.min_subtotal) + '</td>' +
+            '<td>' + usage + '</td>' +
+            '<td class="text-sm">' + period + '</td>' +
+            '<td><span class="badge' + (c.is_active ? '' : ' badge-dark') + '">' + (c.is_active ? '啟用中' : '已停用') + '</span></td>' +
+            '<td>' +
+              '<button class="btn btn-ghost btn-sm" onclick="editCoupon(' + c.id + ')">編輯</button> ' +
+              (c.is_active ? '<button class="btn btn-ghost btn-sm btn-danger" onclick="deactivateCoupon(' + c.id + ')">停用</button>' : '') +
+            '</td></tr>';
+        }).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    function resetForm() {
+      editingCouponId = null;
+      document.getElementById('edit-id').value = '';
+      document.getElementById('form-code').value = '';
+      document.getElementById('form-desc').value = '';
+      document.getElementById('form-discount-type').value = 'fixed';
+      document.getElementById('form-discount-value').value = '';
+      document.getElementById('form-min-subtotal').value = '0';
+      document.getElementById('form-max-discount').value = '';
+      document.getElementById('form-usage-limit').value = '';
+      document.getElementById('form-per-user-limit').value = '1';
+      document.getElementById('form-valid-from').value = '';
+      document.getElementById('form-valid-until').value = '';
+      document.getElementById('form-active').checked = true;
+    }
+
+    window.editCoupon = async function(id) {
+      try {
+        const coupons = await api('/api/admin/coupons');
+        const c = coupons.find(function(x) { return x.id === id; });
+        if (!c) return;
+        editingCouponId = id;
+        document.getElementById('edit-id').value = id;
+        document.getElementById('modal-title').textContent = '編輯優惠券';
+        document.getElementById('form-code').value = c.code;
+        document.getElementById('form-desc').value = c.description || '';
+        document.getElementById('form-discount-type').value = c.discount_type;
+        document.getElementById('form-discount-value').value = c.discount_value;
+        document.getElementById('form-min-subtotal').value = c.min_subtotal || 0;
+        document.getElementById('form-max-discount').value = c.max_discount != null ? c.max_discount : '';
+        document.getElementById('form-usage-limit').value = c.usage_limit != null ? c.usage_limit : '';
+        document.getElementById('form-per-user-limit').value = c.per_user_limit || 1;
+        document.getElementById('form-valid-from').value = toLocalInput(c.valid_from);
+        document.getElementById('form-valid-until').value = toLocalInput(c.valid_until);
+        document.getElementById('form-active').checked = c.is_active;
+        showModal('coupon-modal');
+      } catch (err) { alert('載入優惠券失敗'); }
+    };
+
+    document.getElementById('add-coupon-btn').addEventListener('click', function() {
+      resetForm();
+      document.getElementById('modal-title').textContent = '新增優惠券';
+      showModal('coupon-modal');
+    });
+
+    function closeModal() { hideModal('coupon-modal'); }
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+    window.deactivateCoupon = async function(id) {
+      if (!confirm('確定停用此優惠券？停用後將無法再使用。')) return;
+      try {
+        await api('/api/admin/coupons/' + id, { method: 'DELETE' });
+        loadCoupons();
+      } catch (err) { alert('停用失敗：' + err.message); }
+    };
+
+    document.getElementById('coupon-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var submitBtn = document.getElementById('modal-submit');
+      var code = document.getElementById('form-code').value.trim();
+      var discountValue = parseFloat(document.getElementById('form-discount-value').value);
+      if (!code) return alert('請輸入優惠碼');
+      if (isNaN(discountValue) || discountValue < 0) return alert('請輸入有效的折扣值');
+      var id = document.getElementById('edit-id').value;
+      var body = {
+        code: code,
+        description: document.getElementById('form-desc').value.trim(),
+        discount_type: document.getElementById('form-discount-type').value,
+        discount_value: discountValue,
+        min_subtotal: parseFloat(document.getElementById('form-min-subtotal').value) || 0,
+        max_discount: document.getElementById('form-max-discount').value ? parseFloat(document.getElementById('form-max-discount').value) : null,
+        usage_limit: document.getElementById('form-usage-limit').value ? parseInt(document.getElementById('form-usage-limit').value) : null,
+        per_user_limit: parseInt(document.getElementById('form-per-user-limit').value) || 1,
+        valid_from: toIso(document.getElementById('form-valid-from').value),
+        valid_until: toIso(document.getElementById('form-valid-until').value),
+        is_active: document.getElementById('form-active').checked,
+      };
+      submitBtn.disabled = true;
+      submitBtn.textContent = '儲存中...';
+      try {
+        if (id) {
+          await api('/api/admin/coupons/' + id, { method: 'PUT', body: body });
+        } else {
+          await api('/api/admin/coupons', { method: 'POST', body: body });
+        }
+        closeModal();
+        loadCoupons();
+      } catch (err) {
+        alert('儲存失敗：' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '儲存';
+      }
+    });
+
+    loadCoupons();
+  });
+</script>
+
+<style>
+  .page-header { padding: var(--sp-10) 0; border-bottom: 1px solid var(--c-border); margin-bottom: var(--sp-6); }
+  .page-header h1 { font-size: var(--text-3xl); font-weight: 400; }
+  .admin-nav { display: flex; gap: var(--sp-6); border-bottom: 1px solid var(--c-border); margin-bottom: var(--sp-6); overflow-x: auto; }
+  .admin-nav-link { padding: var(--sp-3) 0; font-size: var(--text-sm); color: var(--c-text-secondary); border-bottom: 2px solid transparent; transition: all var(--duration) var(--ease); white-space: nowrap; }
+  .admin-nav-link:hover { color: var(--c-text); }
+  .admin-nav-link.active { color: var(--c-text); border-bottom-color: var(--c-text); font-weight: 500; }
+  .admin-toolbar { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .text-center { text-align: center; }
+  .text-sm { font-size: var(--text-xs); }
+  .text-secondary { color: var(--c-text-secondary); }
+
+  /* ── Modal ──────────────────────────────────────────────────── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; display: flex; align-items: flex-start; justify-content: center; padding: var(--sp-10) var(--sp-4); overflow-y: auto; }
+  .modal { background: #fff; border-radius: var(--radius); width: 100%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: modalIn 0.2s ease; }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--c-border); }
+  .modal-header h2 { font-size: var(--text-lg); font-weight: 500; }
+  .modal-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); font-size: 16px; color: var(--c-text-secondary); transition: all var(--duration) var(--ease); }
+  .modal-close:hover { background: var(--c-bg-light); color: var(--c-text); }
+  .modal-body { padding: var(--sp-5) var(--sp-6); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: var(--sp-3); padding: var(--sp-4) var(--sp-6); border-top: 1px solid var(--c-border); }
+  .form-row { margin-bottom: var(--sp-4); }
+  .form-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+  .form-label { display: block; font-size: var(--text-sm); color: var(--c-text-secondary); margin-bottom: var(--sp-1); }
+  .form-row-checkbox { display: flex; gap: var(--sp-6); margin-bottom: var(--sp-4); }
+  .form-row-checkbox label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); cursor: pointer; }
+  .badge { font-size: var(--text-xs); padding: 2px 8px; border-radius: 999px; background: var(--c-bg-alt); }
+  .badge-dark { background: var(--c-bg-dark); color: var(--c-text-inverse); }
+  .btn-danger { color: var(--c-danger) !important; }
+  .btn-danger:hover { background: rgba(220,38,38,0.08) !important; }
+
+  @media (max-width: 768px) {
+    .form-row-group { grid-template-columns: 1fr; }
+  }
+</style>

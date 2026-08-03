@@ -20,6 +20,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         <a href="/admin" class="admin-nav-link">統計總覽</a>
         <a href="/admin/products" class="admin-nav-link active">商品管理</a>
         <a href="/admin/orders" class="admin-nav-link">訂單管理</a>
+        <a href="/admin/coupons" class="admin-nav-link">優惠券管理</a>
         <a href="/admin/users" class="admin-nav-link">會員管理</a>
         <a href="/admin/messages" class="admin-nav-link">訊息管理</a>
       </nav>
@@ -104,7 +105,9 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             <div class="image-upload-area">
               <input type="file" id="form-images" accept="image/*" multiple style="display:none">
               <button type="button" class="btn btn-ghost" id="upload-images-btn">＋ 新增圖片</button>
+              <button type="button" class="btn btn-primary btn-sm" id="upload-all-btn" style="display:none">上傳全部</button>
             </div>
+            <div id="pending-gallery" class="image-gallery" style="display:none"></div>
           </div>
           <div class="form-row-checkbox">
             <label><input type="checkbox" id="form-active" checked> 上架</label>
@@ -117,6 +120,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
               <option value="new">全新</option>
               <option value="like_new">近乎全新</option>
               <option value="refurbished">整新品</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label">商品類型</label>
+            <select id="form-product-type" class="input">
+              <option value="physical">實體商品（需運送）</option>
+              <option value="virtual">虛擬商品（免運，無需寄送）</option>
             </select>
           </div>
         </div>
@@ -176,6 +186,14 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     function showModal(id) { document.getElementById(id).style.display = 'flex'; }
     function hideModal(id) { document.getElementById(id).style.display = 'none'; }
 
+    function clearApiCache() {
+      try {
+        for (var k in localStorage) {
+          if (k.indexOf('shop_cache_') === 0) localStorage.removeItem(k);
+        }
+      } catch (e) {}
+    }
+
     // ── Load products ─────────────────────────────────────────────
     async function loadProducts() {
       try {
@@ -192,14 +210,15 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           return '<tr>' +
             '<td>' + p.id + '</td>' +
             '<td>' + imgHtml + '</td>' +
-            '<td>' + escHtml(p.name) + '</td>' +
+            '<td>' + escHtml(p.name) + (p.product_type === 'virtual' ? ' <span class="badge badge-dark">虛擬</span>' : '') + '</td>' +
             '<td>' + escHtml(p.category_name || '-') + '</td>' +
             '<td>' + priceHtml + '</td>' +
             '<td>' + p.stock + '</td>' +
             '<td><span class="badge' + (p.is_active ? '' : ' badge-dark') + '">' + (p.is_active ? '上架中' : '已下架') + '</span></td>' +
             '<td>' +
               '<button class="btn btn-ghost btn-sm" onclick="editProduct(' + p.id + ')">編輯</button> ' +
-              '<button class="btn btn-ghost btn-sm" onclick="toggleProduct(' + p.id + ',' + p.is_active + ')">' + (p.is_active ? '下架' : '上架') + '</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="toggleProduct(' + p.id + ',' + p.is_active + ')">' + (p.is_active ? '下架' : '上架') + '</button> ' +
+              '<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteProduct(' + p.id + ')">刪除</button>' +
             '</td></tr>';
         }).join('');
       } catch (err) { console.error(err); }
@@ -208,8 +227,18 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     window.toggleProduct = async function(id, isActive) {
       try {
         await api('/api/admin/products/' + id, { method: 'PUT', body: { is_active: !isActive } });
+        clearApiCache();
         loadProducts();
       } catch (err) { alert('操作失敗：' + err.message); }
+    };
+
+    window.deleteProduct = async function(id) {
+      if (!confirm('確定要刪除這個商品嗎？此動作無法復原！')) return;
+      try {
+        await api('/api/admin/products/' + id, { method: 'DELETE' });
+        clearApiCache();
+        loadProducts();
+      } catch (err) { alert('刪除失敗：' + err.message); }
     };
 
     // ── Product form modal ────────────────────────────────────────
@@ -224,9 +253,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       document.getElementById('form-stock').value = '1';
       document.getElementById('form-category').value = '';
       document.getElementById('form-condition').value = 'used';
+      document.getElementById('form-product-type').value = 'physical';
       document.getElementById('form-active').checked = true;
       document.getElementById('form-featured').checked = false;
       document.getElementById('image-gallery').innerHTML = '';
+      for (var i = 0; i < pendingFiles.length; i++) URL.revokeObjectURL(pendingFiles[i].url);
+      pendingFiles = [];
+      renderPending();
     }
 
     window.editProduct = async function(id) {
@@ -247,6 +280,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         document.getElementById('form-active').checked = p.is_active;
         document.getElementById('form-featured').checked = p.is_featured;
         document.getElementById('form-condition').value = p.condition || 'used';
+        document.getElementById('form-product-type').value = p.product_type || 'physical';
         renderGallery(p.images || []);
         showModal('product-modal');
       } catch (err) { alert('載入商品失敗'); }
@@ -287,6 +321,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       if (!editingProductId) return;
       try {
         await api('/api/admin/products/' + editingProductId + '/images/' + imageId + '/cover', { method: 'PUT' });
+        clearApiCache();
         const products = await api('/api/admin/products');
         const p = products.find(function(x) { return x.id === editingProductId; });
         if (p) renderGallery(p.images || []);
@@ -297,10 +332,43 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       if (!editingProductId || !confirm('確定刪除此圖片？')) return;
       try {
         await api('/api/admin/products/' + editingProductId + '/images/' + imageId, { method: 'DELETE' });
+        clearApiCache();
         const products = await api('/api/admin/products');
         const p = products.find(function(x) { return x.id === editingProductId; });
         if (p) renderGallery(p.images || []);
       } catch (err) { alert('刪除失敗：' + err.message); }
+    };
+
+    // ── Pending uploads: preview before upload ────────────────────
+    var pendingFiles = [];
+
+    function renderPending() {
+      var gallery = document.getElementById('pending-gallery');
+      var uploadAllBtn = document.getElementById('upload-all-btn');
+      if (!pendingFiles.length) {
+        gallery.style.display = 'none';
+        gallery.innerHTML = '';
+        uploadAllBtn.style.display = 'none';
+        return;
+      }
+      gallery.style.display = 'flex';
+      uploadAllBtn.style.display = 'inline-block';
+      gallery.innerHTML = pendingFiles.map(function(f, i) {
+        return '<div class="gallery-item">' +
+          '<div class="gallery-thumb-wrap">' +
+            '<img src="' + f.url + '" class="gallery-thumb" alt="">' +
+            '<button type="button" class="pending-remove" onclick="removePending(' + i + ')">✕</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    window.removePending = function(index) {
+      var f = pendingFiles[index];
+      if (!f) return;
+      URL.revokeObjectURL(f.url);
+      pendingFiles.splice(index, 1);
+      renderPending();
     };
 
     document.getElementById('upload-images-btn').addEventListener('click', function() {
@@ -310,8 +378,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     document.getElementById('form-images').addEventListener('change', async function(e) {
       var files = e.target.files;
       if (!files || !files.length) return;
-      var productId = editingProductId;
-      if (!productId) {
+      if (!editingProductId) {
         alert('請先儲存商品基本資料，再上傳圖片');
         return;
       }
@@ -322,22 +389,39 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         for (var i = 0; i < files.length; i++) {
           btn.textContent = '壓縮中 (' + (i + 1) + '/' + files.length + ')';
           var compressed = await compressImage(files[i]);
-          var fd = new FormData();
-          fd.append('file', compressed.blob, compressed.name);
-          await fetch(API_URL + '/api/admin/products/' + productId + '/image', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-            body: fd,
-          });
+          pendingFiles.push({ blob: compressed.blob, name: compressed.name, url: URL.createObjectURL(compressed.blob) });
         }
-        const products = await api('/api/admin/products');
-        const p = products.find(function(x) { return x.id === productId; });
-        if (p) renderGallery(p.images || []);
-      } catch (err) { alert('上傳失敗：' + err.message); }
+        renderPending();
+      } catch (err) { alert('壓縮失敗：' + err.message); }
       finally {
         btn.disabled = false;
         btn.textContent = '＋ 新增圖片';
         e.target.value = '';
+      }
+    });
+
+    document.getElementById('upload-all-btn').addEventListener('click', async function() {
+      if (!editingProductId || !pendingFiles.length) return;
+      var btn = document.getElementById('upload-all-btn');
+      btn.disabled = true;
+      btn.textContent = '上傳中...';
+      try {
+        var fd = new FormData();
+        for (var i = 0; i < pendingFiles.length; i++) {
+          fd.append('files', pendingFiles[i].blob, pendingFiles[i].name);
+        }
+        await api('/api/admin/products/' + editingProductId + '/images', { method: 'POST', body: fd });
+        clearApiCache();
+        for (var j = 0; j < pendingFiles.length; j++) URL.revokeObjectURL(pendingFiles[j].url);
+        pendingFiles = [];
+        renderPending();
+        const products = await api('/api/admin/products');
+        const p = products.find(function(x) { return x.id === editingProductId; });
+        if (p) renderGallery(p.images || []);
+      } catch (err) { alert('上傳失敗：' + err.message); }
+      finally {
+        btn.disabled = false;
+        btn.textContent = '上傳全部';
       }
     });
 
@@ -399,17 +483,29 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           is_active: document.getElementById('form-active').checked,
           is_featured: document.getElementById('form-featured').checked,
           condition: document.getElementById('form-condition').value,
+          product_type: document.getElementById('form-product-type').value,
         };
 
         var result;
+        var isNew = !id;
         if (id) {
           result = await api('/api/admin/products/' + id, { method: 'PUT', body: body });
         } else {
           result = await api('/api/admin/products', { method: 'POST', body: body });
         }
+        clearApiCache();
 
-        closeProductModal();
-        loadProducts();
+        if (isNew && result && result.id) {
+          editingProductId = result.id;
+          document.getElementById('edit-id').value = result.id;
+          document.getElementById('modal-title').textContent = '編輯商品';
+          renderGallery([]);
+          loadProducts();
+          alert('商品已建立，請立即上傳圖片');
+        } else {
+          closeProductModal();
+          loadProducts();
+        }
       } catch (err) {
         alert('儲存失敗：' + err.message);
       } finally {
@@ -468,8 +564,10 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       if (!confirm('確定刪除此分類？')) return;
       try {
         await api('/api/admin/categories/' + id, { method: 'DELETE' });
+        clearApiCache();
         loadCatList();
         loadCategorySelect();
+        loadProducts();
       } catch (err) { alert('刪除失敗：' + err.message); }
     };
 
@@ -479,6 +577,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       if (!name) return alert('請輸入分類名稱');
       try {
         await api('/api/admin/categories', { method: 'POST', body: { name: name, slug: slug } });
+        clearApiCache();
         document.getElementById('new-cat-name').value = '';
         document.getElementById('new-cat-slug').value = '';
         loadCatList();
@@ -676,6 +775,24 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .gallery-actions .btn { font-size: 10px; padding: 2px 4px; }
   .btn-danger { color: var(--c-danger) !important; }
   .btn-danger:hover { background: rgba(220,38,38,0.08) !important; }
+  .pending-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: none;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pending-remove:hover { background: var(--c-danger); }
 
   /* ── Category Manager ────────────────────────────────────────── */
   .cat-form-row {

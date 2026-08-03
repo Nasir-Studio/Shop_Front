@@ -29,7 +29,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       </div>
 
       <div class="checkout-layout" id="checkout-layout" style="display:none">
-        <form class="checkout-form" id="checkout-form">
+        <form class="checkout-form" id="checkout-form" novalidate>
           <!-- Shipping Method -->
           <h2>配送方式</h2>
           <div class="shipping-toggle">
@@ -52,6 +52,17 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
               <div>
                 <strong>超商取貨</strong>
                 <span class="shipping-desc">7-11 / 全家 門市取貨</span>
+              </div>
+              <span class="check-mark">✓</span>
+            </button>
+            <button type="button" class="shipping-option" id="ship-meetup" data-method="meetup">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 21s-7-5.1-7-11a7 7 0 0114 0c0 5.9-7 11-7 11z"/>
+                <circle cx="12" cy="10" r="2.5"/>
+              </svg>
+              <div>
+                <strong>面交自取</strong>
+                <span class="shipping-desc">免運費，時間地點另約</span>
               </div>
               <span class="check-mark">✓</span>
             </button>
@@ -110,6 +121,34 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             <div class="form-group">
               <label class="form-label">聯絡電話 *</label>
               <input type="tel" class="form-input" name="shipping_phone_pickup" id="input-phone-pickup" required placeholder="請輸入聯絡電話" />
+            </div>
+          </div>
+
+          <!-- Meetup Section -->
+          <div id="meetup-section" style="display:none">
+            <h2>面交資訊</h2>
+            <div class="form-group">
+              <label class="form-label">聯絡人姓名 *</label>
+              <input type="text" class="form-input" name="shipping_name_meetup" id="input-name-meetup" required placeholder="請輸入聯絡人姓名" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">聯絡電話 *</label>
+              <input type="tel" class="form-input" name="shipping_phone_meetup" id="input-phone-meetup" required placeholder="請輸入聯絡電話" />
+            </div>
+            <div class="shipping-note">面交時間與地點將由我們與您聯繫確認，本方式免運費。</div>
+          </div>
+
+          <!-- Virtual Product Section -->
+          <div id="virtual-section" style="display:none">
+            <h2>虛擬商品</h2>
+            <div class="shipping-note">本訂單僅含虛擬商品，無需運送，請填寫聯絡資訊以便交付商品。</div>
+            <div class="form-group">
+              <label class="form-label">聯絡人姓名 *</label>
+              <input type="text" class="form-input" name="shipping_name_virtual" id="input-name-virtual" required placeholder="請輸入聯絡人姓名" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">聯絡電話 *</label>
+              <input type="tel" class="form-input" name="shipping_phone_virtual" id="input-phone-virtual" required placeholder="請輸入聯絡電話" />
             </div>
           </div>
 
@@ -198,9 +237,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         if (profile.name) nameInput.value = profile.name;
         if (profile.phone) phoneInput.value = profile.phone;
         if (profile.address) addrInput.value = profile.address;
-        // Also fill pickup fields
+        // Also fill pickup / meetup / virtual fields
         if (profile.name) document.getElementById('input-name-pickup').value = profile.name;
         if (profile.phone) document.getElementById('input-phone-pickup').value = profile.phone;
+        if (profile.name) document.getElementById('input-name-meetup').value = profile.name;
+        if (profile.phone) document.getElementById('input-phone-meetup').value = profile.phone;
+        if (profile.name) document.getElementById('input-name-virtual').value = profile.name;
+        if (profile.phone) document.getElementById('input-phone-virtual').value = profile.phone;
       }
     } catch (e) {
       alert('目前網路出現狀況中，請稍後再試');
@@ -214,49 +257,151 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
     document.getElementById('checkout-layout').style.display = 'grid';
 
+    // ── All-virtual cart: force virtual method (no shipping) ──
+    var allVirtual = cart.items.every(function(item) { return item.product_type === 'virtual'; });
+
     // ── Shipping fee ──
-    var SHIPPING_FEE = 75;
+    function shippingFeeFor(method) {
+      if (method === 'meetup' || method === 'virtual') return 0;
+      return 75;
+    }
+    function isFreeShipCoupon() {
+      return appliedCoupon && appliedCoupon.discount_type === 'shipping';
+    }
+    function currentShippingFee() {
+      return isFreeShipCoupon() ? 0 : shippingFeeFor(currentMethod);
+    }
+
+    // ── Coupon state ──
+    var appliedCoupon = null;
+    var couponInputVal = '';
 
     // ── Render order summary ──
     function renderSummary() {
       var itemsHtml = cart.items.map(function(item) {
-        var displayPrice = item.sale_price != null ? item.sale_price : item.price;
         return '<div class="summary-item"><span>' + escHtml(item.product_name) + ' × ' + item.quantity + '</span><span>' + _fmt(item.subtotal) + '</span></div>';
       }).join('');
       var totalBeforeShip = cart.total;
-      var grandTotal = totalBeforeShip + SHIPPING_FEE;
+      var freeShip = isFreeShipCoupon();
+      var discount = appliedCoupon ? (freeShip ? 0 : appliedCoupon.discount_amount) : 0;
+      var shipFee = currentShippingFee();
+      var grandTotal = Math.max(totalBeforeShip - discount, 0) + shipFee;
+      var couponBlock = '<div class="coupon-box">' +
+        '<label class="form-label">優惠券</label>' +
+        '<div class="coupon-row">' +
+          '<input type="text" class="form-input coupon-input" id="coupon-input" placeholder="輸入優惠碼" value="' + escHtml(couponInputVal) + '" ' + (appliedCoupon ? 'disabled' : '') + ' />' +
+          '<button type="button" class="btn btn-secondary coupon-btn" id="coupon-apply-btn" ' + (appliedCoupon ? 'style="display:none"' : '') + '>套用</button>' +
+          '<button type="button" class="coupon-remove" id="coupon-remove-btn" ' + (appliedCoupon ? '' : 'style="display:none"') + '>移除</button>' +
+        '</div>' +
+        '<div id="coupon-status" class="coupon-status"></div>' +
+      '</div>';
       document.getElementById('checkout-summary').innerHTML =
         '<div class="summary-secondhand-notice">⚠️ 所有商品皆為二手物品，請確認商品狀況後再索取</div>' +
         '<h3>訂單摘要</h3>' +
         '<div class="summary-items">' + itemsHtml + '</div>' +
         '<hr class="divider" />' +
+        couponBlock +
         '<div class="summary-row"><span>商品合計</span><span>' + _fmt(totalBeforeShip) + '</span></div>' +
+        (discount > 0 ? '<div class="summary-row summary-discount"><span>優惠折扣 <span class="shipping-breakdown">(' + escHtml(appliedCoupon.code) + ')</span></span><span>-' + _fmt(discount) + '</span></div>' : '') +
+        (freeShip ? '<div class="summary-row summary-discount"><span>免運優惠 <span class="shipping-breakdown">(' + escHtml(appliedCoupon.code) + ')</span></span><span>-運費</span></div>' : '') +
         '<div class="summary-row">' +
-          '<span>運費 <span class="shipping-breakdown">(運費 60 + 包材費 15)</span></span>' +
-          '<span>' + _fmt(SHIPPING_FEE) + '</span>' +
+          '<span>運費' + (shipFee === 0 ? ' <span class="shipping-breakdown">(免運)</span>' : ' <span class="shipping-breakdown">(運費 60 + 包材費 15)</span>') + '</span>' +
+          '<span>' + _fmt(shipFee) + '</span>' +
         '</div>' +
         '<hr class="divider" />' +
-        (totalBeforeShip === 0 && SHIPPING_FEE === 0 ? '<div class="zero-notice">此訂單無需付款</div>' : '') +
+        (grandTotal === 0 ? '<div class="zero-notice">此訂單無需付款</div>' : '') +
         '<div class="summary-row summary-total"><span>應付金額</span><span>' + _fmt(grandTotal) + '</span></div>';
+      var applyBtn = document.getElementById('coupon-apply-btn');
+      if (applyBtn) applyBtn.addEventListener('click', applyCoupon);
+      var removeBtn = document.getElementById('coupon-remove-btn');
+      if (removeBtn) removeBtn.addEventListener('click', removeCoupon);
     }
     renderSummary();
+
+    // ── Coupon apply / remove ──
+    function applyCoupon() {
+      var input = document.getElementById('coupon-input');
+      var status = document.getElementById('coupon-status');
+      var code = input.value.trim();
+      if (!code) {
+        status.textContent = '請輸入優惠碼';
+        status.className = 'coupon-status error';
+        return;
+      }
+      status.textContent = '驗證中...';
+      status.className = 'coupon-status loading';
+      fetch(API_URL + '/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ code: code, subtotal: cart.total, shipping_fee: shippingFeeFor(currentMethod) }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.valid) {
+          appliedCoupon = { code: res.code, discount_amount: res.discount_amount, discount_type: res.discount_type || 'fixed' };
+          couponInputVal = res.code;
+          if (appliedCoupon.discount_type === 'shipping') {
+            status.textContent = '已套用優惠，本單免運費';
+          } else {
+            status.textContent = '已套用優惠，折扣 ' + 'NT$' + res.discount_amount.toLocaleString();
+          }
+          status.className = 'coupon-status success';
+          renderSummary();
+        } else {
+          status.textContent = res.message || '優惠碼無效';
+          status.className = 'coupon-status error';
+        }
+      })
+      .catch(function() {
+        status.textContent = '驗證失敗，請稍後再試';
+        status.className = 'coupon-status error';
+      });
+    }
+
+    function removeCoupon() {
+      appliedCoupon = null;
+      couponInputVal = '';
+      renderSummary();
+    }
 
     // ── Shipping method toggle ──
     var currentMethod = 'home_delivery';
     var shipHome = document.getElementById('ship-home');
     var shipStore = document.getElementById('ship-store');
+    var shipMeetup = document.getElementById('ship-meetup');
     var deliverySection = document.getElementById('delivery-section');
     var pickupSection = document.getElementById('pickup-section');
+    var meetupSection = document.getElementById('meetup-section');
+    var virtualSection = document.getElementById('virtual-section');
 
     shipHome.addEventListener('click', function() { setShippingMethod('home_delivery'); });
     shipStore.addEventListener('click', function() { setShippingMethod('store_pickup'); });
+    shipMeetup.addEventListener('click', function() { setShippingMethod('meetup'); });
 
     function setShippingMethod(method) {
       currentMethod = method;
       shipHome.classList.toggle('active', method === 'home_delivery');
       shipStore.classList.toggle('active', method === 'store_pickup');
+      shipMeetup.classList.toggle('active', method === 'meetup');
       deliverySection.style.display = method === 'home_delivery' ? 'block' : 'none';
       pickupSection.style.display = method === 'store_pickup' ? 'block' : 'none';
+      meetupSection.style.display = method === 'meetup' ? 'block' : 'none';
+      virtualSection.style.display = method === 'virtual' ? 'block' : 'none';
+      renderSummary();
+    }
+
+    // ── All-virtual cart: force virtual method and hide shipping toggle ──
+    if (allVirtual) {
+      currentMethod = 'virtual';
+      document.querySelector('.shipping-toggle').style.display = 'none';
+      shipHome.classList.remove('active');
+      shipStore.classList.remove('active');
+      shipMeetup.classList.remove('active');
+      deliverySection.style.display = 'none';
+      pickupSection.style.display = 'none';
+      meetupSection.style.display = 'none';
+      virtualSection.style.display = 'block';
+      renderSummary();
     }
 
     // ── Store type selector ──
@@ -419,7 +564,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           errorEl.style.display = 'block';
           return;
         }
-      } else {
+      } else if (currentMethod === 'store_pickup') {
         shippingName = document.getElementById('input-name-pickup').value.trim();
         shippingPhone = document.getElementById('input-phone-pickup').value.trim();
         shippingAddress = '';
@@ -428,6 +573,14 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           errorEl.style.display = 'block';
           return;
         }
+      } else if (currentMethod === 'meetup') {
+        shippingName = document.getElementById('input-name-meetup').value.trim();
+        shippingPhone = document.getElementById('input-phone-meetup').value.trim();
+        shippingAddress = '';
+      } else {
+        shippingName = document.getElementById('input-name-virtual').value.trim();
+        shippingPhone = document.getElementById('input-phone-virtual').value.trim();
+        shippingAddress = '';
       }
 
       if (!shippingName || !shippingPhone) {
@@ -454,11 +607,12 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           shipping_address: shippingAddress,
           note: document.getElementById('input-note').value.trim() || '',
           shipping_method: currentMethod,
-          shipping_fee: SHIPPING_FEE,
+          shipping_fee: currentShippingFee(),
           store_type: currentMethod === 'store_pickup' ? storeType : null,
           store_code: currentMethod === 'store_pickup' ? storeCode : null,
           store_name: currentMethod === 'store_pickup' ? storeName : null,
           payment_method: paymentMethod.value,
+          coupon_code: appliedCoupon ? appliedCoupon.code : '',
         };
 
         var orderRes = await fetch(API_URL + '/api/orders', {
@@ -494,7 +648,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .checkout-form h2 { font-size: var(--text-xl); font-weight: 400; margin-bottom: var(--sp-2); }
 
   /* Shipping toggle */
-  .shipping-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .shipping-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-4); }
   .shipping-option { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--c-border); border-radius: var(--radius); cursor: pointer; transition: all var(--duration) var(--ease); background: var(--c-bg); text-align: left; font-size: var(--text-sm); color: var(--c-text); }
   .shipping-option:hover { border-color: var(--c-text); }
   .shipping-option.active { border-color: var(--c-bg-dark); background: var(--c-bg-alt); }
@@ -502,6 +656,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .shipping-option.active svg { color: var(--c-text); }
   .shipping-option strong { display: block; font-weight: 500; }
   .shipping-desc { display: block; font-size: var(--text-xs); color: var(--c-text-light); margin-top: 2px; }
+  .shipping-note { font-size: var(--text-sm); color: var(--c-text-secondary); background: var(--c-bg-alt); border: 1px dashed var(--c-border); border-radius: var(--radius); padding: var(--sp-4); margin-bottom: var(--sp-4); line-height: 1.5; }
   .check-mark { margin-left: auto; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--c-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: transparent; transition: all var(--duration) var(--ease); flex-shrink: 0; }
   .shipping-option.active .check-mark { background: var(--c-bg-dark); color: var(--c-text-inverse); border-color: var(--c-bg-dark); }
 
@@ -562,6 +717,19 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
   /* Shipping breakdown */
   .shipping-breakdown { font-size: var(--text-xs); color: var(--c-text-light); font-weight: 400; }
+
+  /* Coupon */
+  .coupon-box { margin-bottom: var(--sp-4); }
+  .coupon-row { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); }
+  .coupon-input { flex: 1; }
+  .coupon-btn { white-space: nowrap; }
+  .coupon-remove { font-size: var(--text-xs); color: var(--c-text-secondary); text-decoration: underline; background: none; border: none; cursor: pointer; white-space: nowrap; padding: 0; }
+  .coupon-remove:hover { color: var(--c-text); }
+  .coupon-status { font-size: var(--text-xs); margin-top: var(--sp-2); }
+  .coupon-status.loading { color: var(--c-text-light); }
+  .coupon-status.error { color: var(--c-error); }
+  .coupon-status.success { color: #166534; }
+  .summary-discount { color: var(--c-error); }
 
   /* Summary sidebar */
   .checkout-summary { position: sticky; top: 80px; align-self: start; padding: var(--sp-6); border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-bg-alt); }

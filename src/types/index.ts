@@ -67,6 +67,9 @@ export interface OrderItem {
 export interface Order {
   id: number;
   total: number;
+  shipping_fee: number;
+  coupon_code: string;
+  discount_amount: number;
   status: string;
   shipping_name: string;
   shipping_phone: string;
@@ -80,8 +83,27 @@ export interface Order {
 export interface OrderListItem {
   id: number;
   total: number;
+  shipping_fee: number;
+  coupon_code: string;
+  discount_amount: number;
   status: string;
   item_count: number;
+  created_at: string;
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  discount_type: 'fixed' | 'percent';
+  discount_value: number;
+  min_subtotal: number;
+  max_discount: number | null;
+  usage_limit: number | null;
+  used_count: number;
+  per_user_limit: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
