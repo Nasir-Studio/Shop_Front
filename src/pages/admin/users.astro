@@ -71,11 +71,17 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         tbody.innerHTML = users.map(function(u) {
           var date = new Date(u.created_at).toLocaleDateString('zh-TW');
           var roleLabel = u.role === 'admin' ? '<span class="badge badge-dark">管理員</span>' : '<span class="badge">會員</span>';
-          var activeLabel = u.is_active !== false ? '<span class="status"><span class="status-dot" style="background:var(--c-success)"></span>啟用</span>' : '<span class="status"><span class="status-dot" style="background:var(--c-text-light)"></span>停用</span>';
-          var actionBtn = u.role !== 'admin'
-            ? '<button class="btn btn-ghost btn-sm" onclick="toggleUser(' + u.id + ',' + (u.is_active !== false) + ')">' + (u.is_active !== false ? '停用' : '啟用') + '</button>'
-            : '-';
-          return '<tr>' +
+          var isActive = u.is_active !== false;
+          var activeLabel = isActive ? '<span class="status"><span class="status-dot" style="background:var(--c-success)"></span>啟用</span>' : '<span class="status"><span class="status-dot" style="background:var(--c-text-light)"></span>停用</span>';
+          var actionBtn = '';
+          if (u.role === 'admin') {
+            actionBtn = '<span class="text-secondary" style="font-size:var(--text-xs)">—</span>';
+          } else {
+            actionBtn =
+              '<button class="btn btn-ghost btn-sm" onclick="toggleUser(' + u.id + ',' + isActive + ')">' + (isActive ? '停用' : '啟用') + '</button> ' +
+              '<button class="btn btn-ghost btn-sm btn-danger" onclick="deleteUser(' + u.id + ')">刪除</button>';
+          }
+          return '<tr' + (isActive ? '' : ' class="row-inactive"') + '>' +
             '<td>' + u.id + '</td>' +
             '<td>' + escHtml(u.email) + '</td>' +
             '<td>' + escHtml(u.name || '-') + '</td>' +
@@ -91,13 +97,35 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     window.toggleUser = async function(id, isActive) {
       if (!confirm((isActive ? '停用' : '啟用') + '此會員？')) return;
       try {
+        var res = await fetch(API_URL + '/api/admin/users/' + id + '/status', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: !isActive }),
+        });
+        if (!res.ok) {
+          var errJson = await res.json().catch(function() { return {}; });
+          throw new Error(errJson.detail || '操作失敗');
+        }
+        loadUsers();
+      } catch (err) { alert(err.message || '操作失敗'); }
+    };
+
+    window.deleteUser = async function(id) {
+      var name = prompt('此動作將「永久刪除」該會員及其所有訂單、資料，且無法復原。\n輸入該會員 ID (' + id + ') 確認刪除：');
+      if (name === null) return;
+      if (String(name).trim() !== String(id)) { alert('確認文字不符，已取消刪除'); return; }
+      if (!confirm('確定永久刪除會員 #' + id + '？此動作無法復原！')) return;
+      try {
         var res = await fetch(API_URL + '/api/admin/users/' + id, {
           method: 'DELETE',
           headers: { 'Authorization': 'Bearer ' + token },
         });
-        if (!res.ok) throw new Error('Failed');
+        if (!res.ok) {
+          var errJson = await res.json().catch(function() { return {}; });
+          throw new Error(errJson.detail || '刪除失敗');
+        }
         loadUsers();
-      } catch (err) { alert('操作失敗'); }
+      } catch (err) { alert(err.message || '刪除失敗'); }
     };
 
     loadUsers();
@@ -133,4 +161,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     font-weight: 500;
   }
   .text-center { text-align: center; }
+  .row-inactive { opacity: 0.55; }
+  .row-inactive td { background: var(--c-bg-light); }
+  .btn-danger { color: var(--c-danger) !important; }
+  .btn-danger:hover { background: rgba(220,38,38,0.08) !important; }
 </style>

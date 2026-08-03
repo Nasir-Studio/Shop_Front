@@ -388,6 +388,17 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       var noteHtml = order.note ? '<div class="detail-section"><h4>備註</h4><p class="detail-note">' + window.escHtml(order.note) + '</p></div>' : '';
 
+      var trackingHtml = '';
+      if (order.tracking_code) {
+        var trackUrl = order.store_type === '7-11'
+          ? 'https://eservice.7-11.com.tw/e-tracking/search.aspx'
+          : (order.store_type === 'family_mart' ? 'https://ecfme.famiport.com.tw/FamiPort/ECF_OrderTrack/TrackSearch' : '');
+        trackingHtml = '<div class="detail-section"><h4>貨態追蹤</h4>' +
+          '<div class="detail-row"><span>追蹤代碼</span><span class="tracking-code">' + window.escHtml(order.tracking_code) + '</span></div>' +
+          (trackUrl ? '<a class="tracking-link" href="' + trackUrl + '" target="_blank" rel="noopener">前往查詢貨態</a>' : '') +
+          '</div>';
+      }
+
       var itemsSubtotal = order.total - (order.shipping_fee || 0) + (order.discount_amount || 0);
       var discountRow = (order.discount_amount > 0)
         ? '<div class="detail-row"><span>優惠折扣 <span style="font-size:var(--text-xs);color:var(--c-text-light)">(' + window.escHtml(order.coupon_code) + ')</span></span><span>-</span>' + _fmt(order.discount_amount) + '</div>'
@@ -404,6 +415,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         '</div>' +
         statusHtml +
         shippingHtml +
+        trackingHtml +
         '<div class="detail-section"><h4>付款方式</h4><p class="detail-pay">' + payLabel + '</p></div>' +
         noteHtml +
         '</div>';
@@ -465,11 +477,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   .detail-row span:first-child { color: var(--c-text-light); }
   .detail-pay { font-size: var(--text-sm); color: var(--c-text-secondary); }
   .detail-note { font-size: var(--text-sm); color: var(--c-text-secondary); background: var(--c-bg); padding: var(--sp-3); border-radius: var(--radius); }
+  .tracking-code { font-weight: 600; color: var(--c-text); letter-spacing: 0.02em; }
+  .tracking-link { display: inline-block; font-size: var(--text-sm); color: var(--c-text); text-decoration: underline; margin-top: var(--sp-2); }
   .detail-loading { text-align: center; padding: var(--sp-6); font-size: var(--text-sm); color: var(--c-text-light); }
   .detail-loading.error { color: var(--c-error); }
 
-  /* Status steps */
-  .status-steps { display: flex; align-items: center; gap: 0; padding: var(--sp-3) 0; }
+  /* Status steps — flex-wrap so steps don't overflow / clip on small screens */
+  .status-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0; padding: var(--sp-3) 0; }
   .status-step { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); }
   .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c-border); transition: background var(--duration) var(--ease); }
   .status-step.active .step-dot { background: var(--c-bg-dark); }

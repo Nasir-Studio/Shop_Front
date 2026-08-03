@@ -1,9 +1,42 @@
-var CACHE = 'shop-cache-v1';
+var CACHE = 'shop-cache-v2';
 var STATIC_URLS = [
   '/',
   '/manifest.json',
   '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-96.png',
 ];
+
+var NOTIF_DB = 'shop-notif-db';
+var NOTIF_STORE = 'notifications';
+
+// IndexedDB helper for notification history (shared with pages)
+function openNotifDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open(NOTIF_DB, 1);
+    req.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains(NOTIF_STORE)) {
+        var store = db.createObjectStore(NOTIF_STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('ts', 'ts');
+      }
+    };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+
+function saveNotification(notif) {
+  return openNotifDB().then(function(db) {
+    return new Promise(function(resolve) {
+      var tx = db.transaction(NOTIF_STORE, 'readwrite');
+      tx.objectStore(NOTIF_STORE).add(notif);
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { resolve(); };
+    });
+  });
+}
 
 // Install — cache critical static assets
 self.addEventListener('install', function(event) {
@@ -37,7 +70,7 @@ self.addEventListener('fetch', function(event) {
   if (event.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
 
-  // For static assets (js/css/images), use cache-first
+  // For static assets (js/css/png/svg), use cache-first
   if (/\.(js|css|png|jpg|jpeg|gif|svg|woff2?)$/i.test(url.pathname)) {
     event.respondWith(
       caches.match(event.request).then(function(cached) {
@@ -64,4 +97,42 @@ self.addEventListener('fetch', function(event) {
 
   // Everything else — network only
   event.respondWith(fetch(event.request));
+});
+
+// Push notification received — record history + show notification
+self.addEventListener('push', function(event) {
+  var data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {}
+  var title = data.title || '小羊農場';
+  var body = data.body || '';
+  var options = {
+    body: body,
+    icon: '/icon-192.png',
+    badge: '/icon-96.png',
+    data: { url: data.url || '/', ts: Date.now(), title: title, body: body },
+  };
+  event.waitUntil(
+    saveNotif({ title: title, body: body, url: data.url || '/', ts: Date.now(), read: false })
+      .then(function() {
+        return self.registration.showNotification(title, options);
+      })
+  );
+});
+
+// Notification clicked — open the target page
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  var url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i];
+        if ('focus' in client && new URL(client.url).origin === self.location.origin) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });

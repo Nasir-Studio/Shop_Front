@@ -80,6 +80,47 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         }
         tbody.innerHTML = orders.map(function(o) {
           const date = new Date(o.created_at).toLocaleDateString('zh-TW');
+
+          // ── 收件資訊欄位 ──
+          var infoFields = '';
+          infoFields += '<div class="detail-field"><span class="field-label">收件人</span><span class="field-value">' + escHtml(o.shipping_name) + (o.shipping_phone ? ' · ' + escHtml(o.shipping_phone) : '') + '</span></div>';
+          if (o.shipping_method === 'store_pickup') {
+            var stLabel = o.store_type === '7-11' ? '7-11' : (o.store_type === 'family_mart' ? '全家' : '超商');
+            infoFields += '<div class="detail-field"><span class="field-label">取貨門市</span><span class="field-value">' + stLabel + ' ' + escHtml(o.store_name || '') + ' (' + escHtml(o.store_code || '') + ')</span></div>';
+          } else if (o.shipping_method === 'meetup') {
+            infoFields += '<div class="detail-field"><span class="field-label">配送方式</span><span class="field-value">面交自取（免運）</span></div>';
+          } else if (o.shipping_method === 'virtual') {
+            infoFields += '<div class="detail-field"><span class="field-label">配送方式</span><span class="field-value">虛擬商品（免運）</span></div>';
+          } else if (o.shipping_address) {
+            infoFields += '<div class="detail-field"><span class="field-label">配送地址</span><span class="field-value">' + escHtml(o.shipping_address) + '</span></div>';
+          }
+          infoFields += '<div class="detail-field"><span class="field-label">付款方式</span><span class="field-value">' + paymentLabel(o.payment_method) + '</span></div>';
+          infoFields += '<div class="detail-field"><span class="field-label">運費</span><span class="field-value">NT$' + (o.shipping_fee || 0).toLocaleString() + '</span></div>';
+          if (o.discount_amount > 0) {
+            infoFields += '<div class="detail-field"><span class="field-label">優惠折扣</span><span class="field-value">-NT$' + o.discount_amount.toLocaleString() + '（' + escHtml(o.coupon_code) + '）</span></div>';
+          }
+          infoFields += '<div class="detail-field"><span class="field-label">訂單金額</span><span class="field-value field-total">NT$' + (o.total || 0).toLocaleString() + '</span></div>';
+
+          // ── 追蹤代碼（出貨/完成才顯示）──
+          var trackingBlock = (o.status === 'shipped' || o.status === 'completed')
+            ? '<div class="detail-field"><span class="field-label">追蹤代碼</span>' +
+              '<div class="field-inline">' +
+              '<input class="input tracking-input" id="tracking-' + o.id + '" placeholder="7-11 / 全家 貨態代碼" value="' + escHtml(o.tracking_code || '') + '" />' +
+              '<button class="btn btn-primary btn-sm" onclick="saveTracking(' + o.id + ')">儲存</button>' +
+              '</div></div>'
+            : '';
+
+          // ── 商品項目（後端列表已內嵌 items）──
+          var itemsHtml = (o.items && o.items.length)
+            ? o.items.map(function(item) {
+                return '<div class="item-row">' +
+                  '<span class="item-name">' + escHtml(item.product_name || '商品') + '</span>' +
+                  '<span class="item-qty">x ' + item.quantity + '</span>' +
+                  '<span class="item-price">NT$' + (item.subtotal || 0).toLocaleString() + '</span>' +
+                  '</div>';
+              }).join('')
+            : '<div class="item-row"><span class="muted">無商品</span></div>';
+
           return '<tr>' +
             '<td>#' + o.id + '</td>' +
             '<td>' + o.user_email + '</td>' +
@@ -93,35 +134,42 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             '<tr class="order-detail" id="detail-' + o.id + '" style="display:none">' +
             '<td colspan="7">' +
             '<div class="detail-body">' +
+              '<div class="detail-header">' +
+                '<strong>訂單 #' + o.id + ' 明細</strong>' +
+                '<span class="status status-' + o.status + '"><span class="status-dot"></span>' + statusMap[o.status] + '</span>' +
+              '</div>' +
               '<div class="detail-grid">' +
-                '<div class="detail-section">' +
-                  '<strong>收件資訊</strong>' +
-                  '<p>' + escHtml(o.shipping_name) + ' / ' + escHtml(o.shipping_phone || '') + '</p>' +
-                  (o.shipping_address ? '<p>' + escHtml(o.shipping_address) + '</p>' : '') +
-                  (o.shipping_method === 'store_pickup' ? '<p>超取：' + escHtml(o.store_name || '') + ' (' + escHtml(o.store_code || '') + ')</p>' : '') +
-                  (o.shipping_method === 'meetup' ? '<p>配送方式：面交自取（免運）</p>' : '') +
-                  (o.shipping_method === 'virtual' ? '<p>配送方式：虛擬商品（免運）</p>' : '') +
-                  '<p>付款方式：' + paymentLabel(o.payment_method) + '</p>' +
-                  '<p>運費：NT$' + (o.shipping_fee || 0).toLocaleString() + '</p>' +
-                  (o.discount_amount > 0 ? '<p>優惠折扣：-NT$' + o.discount_amount.toLocaleString() + '（' + escHtml(o.coupon_code) + '）</p>' : '') +
+                '<div class="detail-card">' +
+                  '<h5>收件資訊</h5>' +
+                  '<div class="detail-fields">' + infoFields + '</div>' +
                 '</div>' +
-                '<div class="detail-section">' +
-                  '<strong>客戶備註</strong>' +
-                  '<p class="detail-note">' + escHtml(o.note || '無') + '</p>' +
+                '<div class="detail-card">' +
+                  '<h5>訂單狀態</h5>' +
+                  '<div class="detail-fields">' +
+                    '<div class="detail-field"><span class="field-label">狀態</span>' +
+                    '<select class="input status-select" onchange="updateStatus(' + o.id + ', this.value)">' +
+                      statusList.map(function(s) {
+                        return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + statusMap[s] + '</option>';
+                      }).join('') +
+                    '</select></div>' +
+                    trackingBlock +
+                  '</div>' +
                 '</div>' +
-                '<div class="detail-section">' +
-                  '<strong>管理員備註</strong>' +
-                  '<textarea class="input admin-note-input" id="admin-note-' + o.id + '" rows="2">' + escHtml(o.admin_note || '') + '</textarea>' +
-                  '<button class="btn btn-ghost btn-sm" onclick="saveNote(' + o.id + ')">儲存備註</button>' +
                 '</div>' +
-                '<div class="detail-section">' +
-                  '<strong>訂單狀態</strong>' +
-                  '<select class="input status-select" onchange="updateStatus(' + o.id + ', this.value)">' +
-                    statusList.map(function(s) {
-                      return '<option value="' + s + '"' + (s === o.status ? ' selected' : '') + '>' + statusMap[s] + '</option>';
-                    }).join('') +
-                  '</select>' +
+              '<div class="detail-note-grid">' +
+                '<div class="detail-card">' +
+                  '<h4>客戶備註</h4>' +
+                  '<div class="detail-note">' + (o.note ? escHtml(o.note) : '<span class="muted">無備註</span>') + '</div>' +
                 '</div>' +
+                '<div class="detail-card">' +
+                  '<h4>管理員備註</h4>' +
+                  '<textarea class="input admin-note-input" id="admin-note-' + o.id + '" rows="2" placeholder="記錄處理進度、說明…">' + escHtml(o.admin_note || '') + '</textarea>' +
+                  '<div class="field-actions"><button class="btn btn-ghost btn-sm" onclick="saveNote(' + o.id + ')">儲存備註</button></div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="detail-items">' +
+                '<h4>商品項目</h4>' +
+                '<div class="detail-items-list">' + itemsHtml + '</div>' +
               '</div>' +
             '</div>' +
             '</td></tr>';
@@ -154,6 +202,20 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (err) {
         alert('更新狀態失敗：' + err.message);
         loadOrders(); // reload to reset dropdown
+      }
+    };
+
+    window.saveTracking = async function(id) {
+      var input = document.getElementById('tracking-' + id);
+      if (!input) return;
+      var tracking_code = input.value.trim();
+      var select = document.querySelector('#detail-' + id + ' .status-select');
+      var currentStatus = select ? select.value : 'shipped';
+      try {
+        await api('/api/admin/orders/' + id + '/status', { method: 'PUT', body: { status: currentStatus, tracking_code: tracking_code } });
+        alert('追蹤代碼已儲存');
+      } catch (err) {
+        alert('儲存失敗：' + err.message);
       }
     };
 
@@ -220,37 +282,144 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
   .text-center { text-align: center; }
 
+  /* ── Order detail (card-style, aligned fields) ── */
   .order-detail { background: var(--c-bg-light); }
   .order-detail td { padding: 0 !important; }
-  .detail-body { padding: var(--sp-5) var(--sp-6); }
+  .detail-body { padding: var(--sp-6) var(--sp-6) var(--sp-7); }
+
+  .detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding-bottom: var(--sp-4);
+    margin-bottom: var(--sp-5);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .detail-header strong {
+    font-size: var(--text-base);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
   .detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--sp-6);
+    gap: var(--sp-4);
   }
-  .detail-section strong {
-    display: block;
-    font-size: var(--text-sm);
-    margin-bottom: var(--sp-2);
-    color: var(--c-text-secondary);
-  }
-  .detail-section p {
-    font-size: var(--text-sm);
-    margin: var(--sp-1) 0;
-  }
-  .detail-note {
-    background: #fff;
-    padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--radius);
+
+  .detail-card {
+    background: var(--c-bg);
     border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    padding: var(--sp-4) var(--sp-5);
+  }
+  .detail-card h4, .detail-card h5 {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-3);
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .detail-card h5 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  .detail-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .detail-field {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    font-size: var(--text-sm);
+  }
+  .field-label {
+    flex-shrink: 0;
+    color: var(--c-text-light);
+    font-size: var(--text-xs);
+    letter-spacing: 0.02em;
+  }
+  .field-value {
+    text-align: right;
+    color: var(--c-text);
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .field-total {
+    font-weight: 600;
+    font-size: var(--text-base);
+  }
+  .field-inline {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1;
+  }
+  .field-inline .tracking-input { max-width: 220px; }
+
+  .detail-note-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-4);
+    margin-top: var(--sp-4);
+  }
+
+  .detail-note {
+    background: var(--c-bg-light);
+    padding: var(--sp-3);
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    line-height: 1.6;
     min-height: 2.5em;
   }
+  .muted { color: var(--c-text-light); }
+
   .admin-note-input { width: 100%; margin-bottom: var(--sp-2); }
+  .field-actions { display: flex; justify-content: flex-end; }
   .status-select { width: 100%; }
+
+  /* ── Order items list ── */
+  .detail-items { margin-top: var(--sp-4); }
+  .detail-items h4 {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--c-text-secondary);
+    margin-bottom: var(--sp-3);
+    letter-spacing: 0.03em;
+  }
+  .detail-items-list {
+    background: var(--c-bg);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    font-size: var(--text-sm);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-name { flex: 1; color: var(--c-text); }
+  .item-qty { color: var(--c-text-light); font-size: var(--text-xs); }
+  .item-price { font-weight: 500; }
+
   .btn-danger { color: var(--c-danger) !important; }
   .btn-danger:hover { background: rgba(220,38,38,0.08) !important; }
 
   @media (max-width: 768px) {
-    .detail-grid { grid-template-columns: 1fr; }
+    .detail-grid, .detail-note-grid { grid-template-columns: 1fr; }
+    .field-inline { flex-direction: column; align-items: stretch; }
+    .field-inline .tracking-input { max-width: none; }
+    .detail-field { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .field-value { text-align: left; }
   }
 </style>

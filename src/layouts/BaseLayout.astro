@@ -46,6 +46,20 @@ const {
           if (u.role === 'admin') document.documentElement.classList.add('auth-admin');
         } catch(e) {}
       }
+      // When admin opens the PWA (standalone/added to Home Screen), land on
+      // the admin backend instead of the storefront. Only apply in standalone
+      // mode and only once per launch so /admin pages don't loop.
+      if (!sessionStorage.getItem('pwa_admin_redirected')) {
+        if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+          var u2 = null;
+          try { u2 = JSON.parse(localStorage.getItem('shop_user') || 'null'); } catch(e) {}
+          var path = window.location.pathname;
+          if (u2 && u2.role === 'admin' && path !== '/admin' && !path.startsWith('/admin')) {
+            sessionStorage.setItem('pwa_admin_redirected', '1');
+            window.location.replace('/admin');
+          }
+        }
+      }
       // Pre-load cart count for badge visibility
       var c = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
       if (c > 0) { document.documentElement.classList.add('has-cart'); }
@@ -332,7 +346,104 @@ const {
       window.dispatchEvent(new Event('shop:loaded'));
     })();
 
-    // Register service worker
+    // ── Web Push (PWA notifications) ──
+    // iOS 16.4+: subscribe() MUST run inside a user gesture, and the site
+    // must be added to Home Screen (standalone). So we expose window.__push
+    // and let the admin bell trigger subscribe on click.
+    var API_ORIGIN = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
+    window.__push = null;
+
+    function urlBase64ToUint8Array(base64String) {
+      var padding = '='.repeat((4 - base64String.length % 4) % 4);
+      var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      var raw = atob(base64);
+      var arr = new Uint8Array(raw.length);
+      for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+      return arr;
+    }
+
+    function isStandalone() {
+      return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+    }
+
+    window.__push = {
+      supported: function() {
+        return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+      },
+      isIOS: function() {
+        return /iphone|ipad|ipod/i.test(navigator.userAgent);
+      },
+      isStandalone: isStandalone,
+      // iOS needs the app added to Home Screen before subscribing
+      needsInstall: function() {
+        return this.isIOS() && !isStandalone();
+      },
+      permission: function() {
+        if (!('Notification' in window)) return 'unsupported';
+        return Notification.permission;
+      },
+      getSubscription: function() {
+        if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+        return navigator.serviceWorker.ready
+          .then(function(reg) { return reg.pushManager.getSubscription(); })
+          .catch(function() { return null; });
+      },
+      // Subscribe — MUST be called from a user gesture (click)
+      subscribe: function() {
+        var token = localStorage.getItem('shop_token');
+        if (!token) return Promise.reject(new Error('未登入'));
+        if (!('serviceWorker' in navigator)) return Promise.reject(new Error('瀏覽器不支援推播'));
+        return navigator.serviceWorker.register('/sw.js')
+          .then(function() { return navigator.serviceWorker.ready; })
+          .then(function(reg) {
+            if (Notification.permission === 'denied') {
+              throw new Error('通知權限已被封鎖，請在瀏覽器設定中開啟');
+            }
+            return fetch(API_ORIGIN + '/api/push/public-key')
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                if (!data.public_key) throw new Error('推播服務未設定');
+                return reg.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: urlBase64ToUint8Array(data.public_key)
+                });
+              });
+          })
+          .then(function(sub) {
+            return fetch(API_ORIGIN + '/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
+                  auth: btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))))
+                }
+              })
+            }).then(function(r) { if (!r.ok) throw new Error('訂閱失敗'); return true; });
+          });
+      },
+      unsubscribe: function() {
+        var token = localStorage.getItem('shop_token');
+        return this.getSubscription().then(function(sub) {
+          var endpoint = sub ? sub.endpoint : '';
+          if (sub) {
+            return sub.unsubscribe().catch(function() {}).then(function() {
+              if (token && endpoint && fetch) {
+                return fetch(API_ORIGIN + '/api/push/subscribe?endpoint=' + encodeURIComponent(endpoint), {
+                  method: 'DELETE',
+                  headers: { 'Authorization': 'Bearer ' + token }
+                }).catch(function() {});
+              }
+            });
+          }
+          return null;
+        });
+      }
+    };
+
+    // Register service worker (for PWA + push)
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').catch(function(err) {
