@@ -52,7 +52,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     </div>
   </main>
 
-  <!-- Product Form Modal -->
   <div id="product-modal" class="modal-overlay" style="display:none">
     <div class="modal">
       <div class="modal-header">
@@ -138,7 +137,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     </div>
   </div>
 
-  <!-- Category Manager Modal -->
   <div id="cat-modal" class="modal-overlay" style="display:none">
     <div class="modal">
       <div class="modal-header">
@@ -170,7 +168,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     if (!window.__requireAdmin()) return;
     const token = localStorage.getItem('shop_token');
 
-    // ── Load helpers ──────────────────────────────────────────────
     async function api(path, opts) {
       opts = opts || {};
       opts.headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
@@ -194,7 +191,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (e) {}
     }
 
-    // ── Load products ─────────────────────────────────────────────
     async function loadProducts() {
       try {
         const products = await api('/api/admin/products');
@@ -241,7 +237,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (err) { alert('刪除失敗：' + err.message); }
     };
 
-    // ── Product form modal ────────────────────────────────────────
     function resetForm() {
       editingProductId = null;
       document.getElementById('edit-id').value = '';
@@ -296,7 +291,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     document.getElementById('modal-close').addEventListener('click', closeProductModal);
     document.getElementById('modal-cancel').addEventListener('click', closeProductModal);
 
-    // ── Image Gallery ─────────────────────────────────────────────
     function renderGallery(images) {
       var gallery = document.getElementById('image-gallery');
       if (!images || !images.length) {
@@ -339,7 +333,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (err) { alert('刪除失敗：' + err.message); }
     };
 
-    // ── Pending uploads: preview before upload ────────────────────
     var pendingFiles = [];
 
     function renderPending() {
@@ -425,10 +418,9 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       }
     });
 
-    // ── Client-side image compression ──
     function compressImage(file) {
       return new Promise(function(resolve, reject) {
-        // Skip compression for small files (under 200KB)
+        // 小檔案（200KB 以下）跳過壓縮
         if (file.size < 200 * 1024) {
           resolve({ blob: file, name: file.name });
           return;
@@ -514,12 +506,11 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       }
     });
 
-    // ── "免費" button: set sale_price to 0 ──────────────────────
+    // "免費" button: set sale_price to 0
     document.getElementById('btn-free').addEventListener('click', function() {
       document.getElementById('form-sale-price').value = '0';
     });
 
-    // ── Load categories for select ────────────────────────────────
     async function loadCategorySelect() {
       try {
         const cats = await api('/api/admin/categories');
@@ -534,7 +525,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (err) { console.error(err); }
     }
 
-    // ── Category Manager ──────────────────────────────────────────
     document.getElementById('manage-cats-btn').addEventListener('click', function() {
       loadCatList();
       showModal('cat-modal');
@@ -585,7 +575,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       } catch (err) { alert('新增失敗：' + err.message); }
     });
 
-    // ── Init ──────────────────────────────────────────────────────
     await loadCategorySelect();
     loadProducts();
   });
@@ -636,7 +625,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     border: 1px solid var(--c-border);
   }
 
-  /* ── Modal ──────────────────────────────────────────────────── */
   .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.4);
@@ -731,7 +719,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     border: 1px solid var(--c-border);
   }
 
-  /* ── Image Gallery ──────────────────────────────────────────── */
   .image-gallery {
     display: flex;
     flex-wrap: wrap;
@@ -794,7 +781,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   }
   .pending-remove:hover { background: var(--c-danger); }
 
-  /* ── Category Manager ────────────────────────────────────────── */
   .cat-form-row {
     display: flex;
     gap: var(--sp-2);

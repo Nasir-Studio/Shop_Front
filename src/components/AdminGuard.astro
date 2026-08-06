@@ -1,6 +1,5 @@
 ---
-// Blocking admin guard — place at TOP of <body> before any content
-// Immediately redirects/rewrites page for non-admin, blocking render
+// 阻擋式管理員守衛：置於 <body> 最上方，非管理員立即跳轉並封鎖渲染
 ---
 <script is:inline>
   (function() {
@@ -26,7 +25,6 @@
 </script>
 
 <script is:inline>
-  // Also expose for secondary checks in dynamic content
   window.__isAdmin = (function() {
     try {
       var u = JSON.parse(localStorage.getItem('shop_user') || '{}');

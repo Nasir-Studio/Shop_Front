@@ -2,7 +2,6 @@
 ---
 
 <header class="header">
-  <!-- Announcement banner -->
   <div id="announcement-banner" class="announcement-bar">
     <div class="announcement-inner">
       <span class="announcement-text">
@@ -111,12 +110,11 @@
 </header>
 
 <script is:inline>
-  // ── XSS defense: escape HTML in user-controlled data ──
+  // XSS 防護：跳脫使用者資料中的 HTML
   window.escHtml = function(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   };
-  // ── Dynamic header height (run immediately, no DOMContentLoaded wait) ──
   (function() {
     var header = document.querySelector('.header');
     if (header) {
@@ -131,7 +129,6 @@
   })();
 
   document.addEventListener('DOMContentLoaded', function() {
-    // Announcement dismiss (7-day expiry)
     var announceClose = document.getElementById('announcement-close');
     if (announceClose) {
       announceClose.addEventListener('click', function() {
@@ -139,7 +136,6 @@
         if (banner) banner.style.display = 'none';
         localStorage.setItem('announcement_closed', String(Date.now()));
         document.documentElement.classList.remove('announcement-visible');
-        // Re-measure header height after banner hides
         var h = document.querySelector('.header');
         if (h) document.documentElement.style.setProperty('--header-h', h.offsetHeight + 'px');
       });
@@ -150,20 +146,16 @@
     const logoutBtn = document.getElementById('logout-btn');
     const badge = document.getElementById('cart-badge');
 
-    // Cart badge count
     var count = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
     if (badge && count > 0) { badge.textContent = String(count); }
 
-    // ── Auth UI: login btn ↔ avatar dropdown ──
     var userStr = localStorage.getItem('shop_user');
     var token = localStorage.getItem('shop_token');
     if (userStr && token) {
       try {
         var userData = JSON.parse(userStr);
-        // Show avatar dropdown, hide login button
         document.getElementById('login-btn').style.display = 'none';
         document.getElementById('user-dropdown').style.display = 'block';
-        // Avatar initial
         var initial = (userData.name || userData.email || '?').charAt(0).toUpperCase();
         var avatarEl = document.getElementById('user-avatar-initial');
         if (avatarEl) avatarEl.textContent = initial;
@@ -171,7 +163,6 @@
         var emailEl = document.getElementById('dropdown-user-email');
         if (nameEl) nameEl.textContent = userData.name || '';
         if (emailEl) emailEl.textContent = userData.email || '';
-        // Mobile nav
         document.getElementById('mobile-login-link').style.display = 'none';
         document.getElementById('mobile-account-link').style.display = 'block';
         document.getElementById('mobile-orders-link').style.display = 'block';
@@ -179,7 +170,6 @@
       } catch(e) {}
     }
 
-    // Dropdown toggle
     if (userBtn && dropdownMenu) {
       userBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -190,7 +180,6 @@
       });
     }
 
-    // ── Currency selector ──
     var cc = window.__currency;
     if (cc) {
       var currencyBtn = document.getElementById('currency-btn');
@@ -198,7 +187,6 @@
       var currencyOptions = document.getElementById('currency-options');
       var currencyLabel = document.getElementById('currency-btn-label');
 
-      // Render options
       if (currencyOptions) {
         var codes = Object.keys(cc.currencies);
         var activeCode = cc.getCode();
@@ -212,7 +200,6 @@
             '</button>';
         }).join('');
 
-        // Click handler
         currencyOptions.addEventListener('click', function(e) {
           var btn = e.target.closest('.currency-option');
           if (!btn) return;
@@ -226,12 +213,10 @@
         });
       }
 
-      // Update label
       if (currencyLabel) {
         currencyLabel.textContent = cc.getSymbol() + (cc.getCode() !== 'TWD' ? ' ' + cc.getCode() : '');
       }
 
-      // Toggle dropdown
       if (currencyBtn && currencyMenu) {
         currencyBtn.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -243,7 +228,6 @@
       }
     }
 
-    // ── Notification bell (admin only) ──
     var notifWrap = document.getElementById('notif-wrap');
     var notifBtn = document.getElementById('notif-btn');
     var notifMenu = document.getElementById('notif-menu');
@@ -261,7 +245,7 @@
       }
     }
 
-    // Notification history from IndexedDB (written by service worker)
+    // 通知歷史讀自 IndexedDB（由 service worker 寫入）
     var NOTIF_DB = 'shop-notif-db';
     var NOTIF_STORE = 'notifications';
     function openNotifDB() {
@@ -412,19 +396,15 @@ function renderNotifStatus() {
         if (notifMenu) notifMenu.classList.remove('show');
       });
     }
-    // Refresh unread badge when page regains focus
     window.addEventListener('focus', updateNotifBadge);
-    // Listen for push events arriving while page is open
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'notif') updateNotifBadge();
       });
     }
 
-    // ── Thorough logout ──
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function() {
-        // Clear all shop-related localStorage items
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
           var key = localStorage.key(i);
@@ -433,14 +413,11 @@ function renderNotifStatus() {
           }
         }
         keysToRemove.forEach(function(k) { localStorage.removeItem(k); });
-        // Clear session storage too
         sessionStorage.clear();
-        // Redirect to home
         window.location.href = '/';
       });
     }
 
-    // Mobile menu
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const mobileNav = document.getElementById('mobile-nav');
     if (mobileMenuBtn && mobileNav) {
@@ -449,7 +426,6 @@ function renderNotifStatus() {
       });
     }
 
-    // Mobile logout
     var mobileLogoutBtn = document.getElementById('mobile-logout-btn');
     if (mobileLogoutBtn) {
       mobileLogoutBtn.addEventListener('click', function() {
@@ -478,7 +454,6 @@ function renderNotifStatus() {
     border-bottom: 1px solid var(--c-border);
   }
 
-  /* ── Announcement bar ── */
   .announcement-bar {
     background: var(--c-bg-dark);
     color: var(--c-text-inverse);
@@ -587,7 +562,6 @@ function renderNotifStatus() {
     justify-content: center;
   }
 
-  /* ── Currency selector ── */
   .currency-selector { position: relative; }
   .currency-btn {
     display: flex;
@@ -653,7 +627,6 @@ function renderNotifStatus() {
     position: relative;
   }
 
-  /* ── Notification bell ── */
   .notif-wrap { position: relative; }
   /* 鈴鐺未開推播：灰色；已開：紅色（color 會套用到 svg stroke） */
   .notif-btn { color: var(--c-text-secondary); transition: color var(--duration) var(--ease); }
@@ -731,7 +704,6 @@ function renderNotifStatus() {
   .notif-body { font-size: var(--text-xs); color: var(--c-text-secondary); margin-top: 2px; }
   .notif-time { display: block; font-size: 10px; color: var(--c-text-light); margin-top: 4px; }
 
-  /* ── Circle avatar button ── */
   .user-avatar-btn {
     width: 36px;
     height: 36px;
@@ -819,7 +791,6 @@ function renderNotifStatus() {
     background: #fef2f2;
   }
 
-  /* Mobile */
   .mobile-menu-btn { display: none; }
 
   .mobile-nav {

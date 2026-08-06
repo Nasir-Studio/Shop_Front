@@ -9,7 +9,7 @@ import Footer from '../components/Footer.astro';
 
   <main class="pt-header">
     <div class="container">
-      <!-- Prevent 404 flash: if /products/{slug}/, inject CSS to hide 404 + show loading BEFORE they render -->
+      <!-- 防止 404 閃現：/products/ 網址先隱藏 404 並顯示載入中 -->
       <script is:inline>
         (function(){
           var p = window.location.pathname.replace(/\/+$/, '');
@@ -31,7 +31,7 @@ import Footer from '../components/Footer.astro';
         </div>
       </div>
 
-      <!-- Loading state for product URL fallback (hidden by default, shown via head script) -->
+      <!-- 商品網址 fallback 的載入狀態（預設隱藏，由 head 的 script 顯示） -->
       <div class="product-loading" id="product-loading">
         <div class="loading-spinner"></div>
         <p class="loading-text">載入中…</p>
@@ -179,7 +179,7 @@ import Footer from '../components/Footer.astro';
         });
       }
     } catch (e) {
-      // not a real product — stay on 404
+      // 不是真實商品，維持 404
     }
   });
 </script>
@@ -257,7 +257,7 @@ import Footer from '../components/Footer.astro';
   }
 </style>
 
-<!-- Product detail styles must be global so JS-injected HTML is styled correctly -->
+<!-- 商品詳情樣式須為全域，JS 注入的 HTML 才會有樣式 -->
 <style is:global>
   .breadcrumb { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-6) 0; font-size: var(--text-sm); color: var(--c-text-secondary); }
   .breadcrumb a { transition: color var(--duration) var(--ease); }

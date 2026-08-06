@@ -9,9 +9,7 @@ const {
   description = '小羊農場，讓每件物品的價值淋漓盡致。',
 } = Astro.props;
 
-// PWA is only for the admin backend (/admin). The public storefront should
-// NOT be installable as a PWA. iOS reads start_url from the manifest, so the
-// manifest must point at /admin — and only be injected on /admin pages.
+// PWA 僅限 /admin：manifest 指向 /admin，且只在 /admin 頁面注入
 const isAdminRoute = Astro.url.pathname.startsWith('/admin');
 ---
 
@@ -45,7 +43,6 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
   <link rel="dns-prefetch" href="https://shopbackend.nsir.uk" />
   <link rel="preconnect" href="https://open.er-api.com" />
 
-  <!-- Sync auth state — runs before first paint, eliminates flicker -->
   <script is:inline>
     (function() {
       var t = localStorage.getItem('shop_token');
@@ -56,9 +53,7 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
           if (u.role === 'admin') document.documentElement.classList.add('auth-admin');
         } catch(e) {}
       }
-      // When admin opens the PWA (standalone/added to Home Screen), land on
-      // the admin backend instead of the storefront. Only apply in standalone
-      // mode and only once per launch so /admin pages don't loop.
+      // PWA 獨立模式啟動時，管理員自動前往 /admin（僅一次，避免循環）
       if (!sessionStorage.getItem('pwa_admin_redirected')) {
         if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
           var u2 = null;
@@ -70,11 +65,9 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
           }
         }
       }
-      // Pre-load cart count for badge visibility
       var c = parseInt(localStorage.getItem('shop_cart_count') || '0', 10);
       if (c > 0) { document.documentElement.classList.add('has-cart'); }
 
-      // Announcement banner — show if never closed or 7 days have passed
       var closeTs = localStorage.getItem('announcement_closed');
       var WEEK = 7 * 24 * 60 * 60 * 1000;
       if (!closeTs || (Date.now() - parseInt(closeTs) > WEEK)) {
@@ -83,7 +76,6 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
     })();
   </script>
 
-  <!-- Critical visibility — applied before body renders, no flicker -->
   <style>
     #user-dropdown { display: none; }
     #mobile-account-link { display: none; }
@@ -99,14 +91,13 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
     .announcement-visible #announcement-banner { display: block; }
   </style>
 
-  <!-- ── Currency support ── -->
   <script is:inline>
     (function() {
       window.__currency = {};
 
       var STORAGE_KEY = 'shop_currency_code';
       var RATES_KEY = 'shop_exchange_rates';
-      var RATES_TTL = 3600000; // 1 hour
+      var RATES_TTL = 3600000; // 1 小時
 
       var CURRENCIES = {
         TWD: { symbol: 'NT$', label: '台幣', decimals: 0 },
@@ -157,7 +148,6 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
         cc._code = code;
         try { localStorage.setItem(STORAGE_KEY, code); } catch(e) {}
         document.documentElement.setAttribute('data-currency', code);
-        // Re-convert visible prices
         cc.applyPrices();
       };
 
@@ -203,7 +193,6 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
         var script = document.createElement('script');
         script.src = 'https://open.er-api.com/v6/latest/TWD?callback=__currency_cb';
         var timeout = setTimeout(function() {
-          // Fallback: use hardcoded approximate rates
           cc._rates = { USD: 0.031, EUR: 0.028, JPY: 4.75, CNY: 0.22, HKD: 0.24, SGD: 0.041, KRW: 40.5, GBP: 0.024, AUD: 0.046 };
           cc._loading = false;
           var cbs = cc._rateCallbacks;
@@ -238,11 +227,9 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
         cc._loadRates(callback);
       };
 
-      // Init: restore currency attribute and attempt rate load
       document.documentElement.setAttribute('data-currency', cc._code);
       cc._loadRates();
 
-      // After DOM ready, apply prices to [data-ntd] elements
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() { cc.ready(cc.applyPrices); });
       } else {
@@ -252,9 +239,8 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
   </script>
 
   <script is:inline>
-    // ── Anti-debug: prevent console, debugger, and devtools ──
     (function() {
-      // Domain binding — only allow our domains
+      // 網域綁定：僅允許我們的網域
       var allowed = ['shop.nsir.uk', 'localhost', '127.0.0.1', 'nsir-studio.github.io'];
       var host = window.location.hostname;
       var ok = allowed.some(function(d) { return host === d || host.endsWith('.' + d); });
@@ -266,41 +252,38 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
         return;
       }
 
-      // Anti-debug: override console if in production
+      // 正式環境停用 console
       if (host === 'shop.nsir.uk') {
         var noop = function() {};
         ['log','warn','info','debug','dir','table','trace','group','groupCollapsed','groupEnd','time','timeEnd','profile','profileEnd'].forEach(function(m) {
           if (window.console) window.console[m] = noop;
         });
-        // Block debugger statements via periodic override
+        // 週期性覆寫以封鎖 debugger
         var blockDebugger = function() {
           var start = Date.now();
-          debugger; // If devtools is open, this pauses — the code below won't run in time
+          debugger; // devtools 開啟時會在此暫停，後續程式碼無法及時執行
           var diff = Date.now() - start;
           if (diff > 5) {
             document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;background:#111;color:#fff;margin:0"><p>DevTools 已禁用</p></div>';
             window.stop();
           }
         };
-        // Attempt to detect devtools on load
         try {
           Object.defineProperty(document, 'domain', { get: function() { return 'shop.nsir.uk'; } });
         } catch(e) {}
-        // Freeze some globals to prevent tampering
+        // 凍結部分全域物件以防竄改
         if (Object.freeze) {
           try { Object.freeze(window.console); } catch(e) {}
         }
-        // Periodic anti-debug check (runs once)
         setTimeout(blockDebugger, 1000);
       }
     })();
   </script>
 
-  <!-- ── API Cache: stale-while-revalidate ── -->
   <script is:inline>
     (function() {
       var CACHE_PREFIX = 'shop_cache_';
-      var CACHE_TTL = 10000; // 10s fresh, then refetch and wait
+      var CACHE_TTL = 10000; // 快取 10 秒，過期即重新抓取
       window.__apiCache = {
         get: function(key) {
           try {
@@ -316,13 +299,12 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
             localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data: data, ts: Date.now() }));
           } catch(e) {}
         },
-        // Fetch with stale-while-revalidate: return cached instantly, refresh in background
+        // stale-while-revalidate：先回傳快取，背景更新
         fetch: async function(url, key, options) {
           var cached = window.__apiCache.get(key || url);
-          if (cached && !cached.stale) return cached.data; // fresh
+          if (cached && !cached.stale) return cached.data; // 新鮮
           if (cached) {
-            // stale: refetch and wait so the current page shows fresh data;
-            // fall back to stale only when the network is unavailable
+            // 過期：重新抓取等新資料，網路失敗才退回舊快取
             try {
               var res = await fetch(url, options || {});
               if (!res.ok) throw new Error();
@@ -333,7 +315,6 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
               return cached.data;
             }
           }
-          // no cache: fetch and wait
           var res = await fetch(url, options || {});
           if (!res.ok) throw new Error('API error');
           var data = await res.json();
@@ -347,19 +328,14 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
 <body>
   <slot />
   <script is:inline>
-    // Sync token and user state on load
     (function() {
       const token = localStorage.getItem('shop_token');
       const user = localStorage.getItem('shop_user');
       if (!token && user) localStorage.removeItem('shop_user');
-      // Dispatch event for components to react
       window.dispatchEvent(new Event('shop:loaded'));
     })();
 
-    // ── Web Push (PWA notifications) ──
-    // iOS 16.4+: subscribe() MUST run inside a user gesture, and the site
-    // must be added to Home Screen (standalone). So we expose window.__push
-    // and let the admin bell trigger subscribe on click.
+    // iOS 16.4+：subscribe() 必須在使用者手勢中呼叫，且需加到主畫面（standalone）
     var API_ORIGIN = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
     window.__push = null;
 
@@ -385,7 +361,7 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
         return /iphone|ipad|ipod/i.test(navigator.userAgent);
       },
       isStandalone: isStandalone,
-      // iOS needs the app added to Home Screen before subscribing
+      // iOS 需先加到主畫面才能訂閱
       needsInstall: function() {
         return this.isIOS() && !isStandalone();
       },
@@ -399,7 +375,7 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
           .then(function(reg) { return reg.pushManager.getSubscription(); })
           .catch(function() { return null; });
       },
-      // Subscribe — MUST be called from a user gesture (click)
+      // 訂閱：必須從使用者手勢（點擊）呼叫
       subscribe: function() {
         var token = localStorage.getItem('shop_token');
         if (!token) return Promise.reject(new Error('未登入'));
@@ -453,8 +429,7 @@ const isAdminRoute = Astro.url.pathname.startsWith('/admin');
       }
     };
 
-    // Register service worker (for PWA + push) — only on /admin pages,
-    // so the public storefront stays a plain website, not a PWA.
+    // 註冊 Service Worker（PWA + 推播）— 僅 /admin 頁面，前台維持一般網站
     if ('serviceWorker' in navigator) {
       var isAdminPath = window.location.pathname.indexOf('/admin') === 0;
       if (isAdminPath) {

@@ -83,7 +83,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     var currentSort = params.get('sort') || 'newest';
     var currentSearch = params.get('search') || '';
 
-    // ── Update URL without page reload ──
     function updateUrl() {
       var qs = new URLSearchParams();
       if (currentPage > 1) qs.set('page', String(currentPage));
@@ -94,7 +93,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       window.history.replaceState({ page: currentPage, category: currentCategory, sort: currentSort, search: currentSearch }, '', url);
     }
 
-    // ── Subtle loading state (no full-screen animation) ──
     function showGridLoading() {
       var grid = document.getElementById('products-grid');
       grid.style.opacity = '0.4';
@@ -111,7 +109,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         if (!res.ok) return;
         var cats = await res.json();
         var container = document.getElementById('category-filters');
-        // "全部" link
         var html = '<a href="#" class="filter-link' + (!currentCategory ? ' active' : '') + '" data-category="">全部</a>';
         cats.forEach(function(c) {
           var active = currentCategory === c.slug ? ' active' : '';
@@ -119,7 +116,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         });
         container.innerHTML = html;
 
-        // Attach click handlers for category links (AJAX)
         container.querySelectorAll('.filter-link').forEach(function(link) {
           link.addEventListener('click', function(e) {
             e.preventDefault();
@@ -128,7 +124,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             currentCategory = cat;
             currentPage = 1;
             updateUrl();
-            // Update active state
             container.querySelectorAll('.filter-link').forEach(function(l) { l.classList.remove('active'); });
             link.classList.add('active');
             showGridLoading();
@@ -181,7 +176,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
             '</div></a>';
         }).join('');
 
-        // Tell loading screen to preload these images
+        // 通知載入畫面預載這些圖片
         if (window.__loadingPreload) {
           var urls = data.items.filter(function(p) { return p.image_url; }).map(function(p) { return p.image_url; });
           window.__loadingPreload(urls);
@@ -201,7 +196,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       }
     }
 
-    // ── Pagination: AJAX ──
     window.goPage = function(page) {
       if (page < 1) return;
       currentPage = page;
@@ -211,7 +205,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // ── Sort links: AJAX ──
     document.querySelectorAll('#sort-filters .filter-link').forEach(function(link) {
       link.addEventListener('click', function(e) {
         e.preventDefault();
@@ -220,7 +213,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         currentSort = sort;
         currentPage = 1;
         updateUrl();
-        // Update active state
         document.querySelectorAll('#sort-filters .filter-link').forEach(function(l) { l.classList.remove('active'); });
         link.classList.add('active');
         showGridLoading();
@@ -228,7 +220,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       });
     });
 
-    // ── Mobile sort: AJAX ──
     var mobileSort = document.getElementById('mobile-sort');
     if (mobileSort) {
       mobileSort.value = currentSort;
@@ -238,7 +229,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         currentSort = sort;
         currentPage = 1;
         updateUrl();
-        // Sync desktop sort active state
         document.querySelectorAll('#sort-filters .filter-link').forEach(function(l) {
           l.classList.toggle('active', l.dataset.sort === sort);
         });

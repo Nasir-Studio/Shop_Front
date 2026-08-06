@@ -56,7 +56,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   var API_URL = window.location.hostname === 'shop.nsir.uk' ? 'https://shopbackend.nsir.uk' : 'http://localhost:8000';
   const statusMap = { pending: '訂單未付款', paid: '待出貨', shipped: '訂單已出貨', completed: '訂單已完成', cancelled: '已取消' };
   const statusList = ['pending', 'paid', 'shipped', 'completed', 'cancelled'];
-  // Contextual quick actions shown inside the status card
   const statusActions = {
     pending: [{ s: 'paid', label: '確認收款' }, { s: 'shipped', label: '出貨' }],
     paid:   [{ s: 'shipped', label: '出貨' }],
@@ -115,7 +114,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     }
 
     function detailBody(o) {
-          // ── 收件資訊欄位 ──
+          // 收件資訊欄位
           var infoFields = '';
           infoFields += '<div class="detail-field"><span class="field-label">收件人</span><span class="field-value">' + escHtml(o.shipping_name) + (o.shipping_phone ? ' · ' + escHtml(o.shipping_phone) : '') + '</span></div>';
           if (o.shipping_method === 'store_pickup') {
@@ -135,7 +134,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
           }
           infoFields += '<div class="detail-field"><span class="field-label">訂單金額</span><span class="field-value field-total">NT$' + (o.total || 0).toLocaleString() + '</span></div>';
 
-          // ── 追蹤代碼（出貨/完成才顯示）──
+          // 追蹤代碼（出貨/完成才顯示）
           var trackingBlock = (o.status === 'shipped' || o.status === 'completed')
             ? '<div class="detail-field"><span class="field-label">追蹤代碼</span>' +
               '<div class="field-inline">' +
@@ -144,7 +143,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
               '</div></div>'
             : '';
 
-          // ── 商品項目（後端列表已內嵌 items）──
+          // 商品項目（後端列表已內嵌 items）
           var itemsHtml = (o.items && o.items.length)
             ? o.items.map(function(item) {
                 var thumb = item.product_image
@@ -227,7 +226,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
       var el = document.getElementById('detail-' + id);
       if (!el) return;
       var isOpen = el.style.display !== 'none';
-      // close all
       var panels = document.querySelectorAll('#detail-panels .detail-panel');
       for (var i = 0; i < panels.length; i++) panels[i].style.display = 'none';
       if (!isOpen) {
@@ -238,7 +236,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
     window.updateStatus = async function(id, newStatus) {
       try {
-        // confirm when shipping out with a tracking code
+        // 出貨時確認填寫追蹤代碼
         if (newStatus === 'shipped') {
           const input = document.getElementById('tracking-' + id);
           const code = input ? input.value.trim() : '';
@@ -252,7 +250,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
         loadOrders();
       } catch (err) {
         alert('更新狀態失敗：' + err.message);
-        loadOrders(); // reload to reset dropdown
+        loadOrders();
       }
     };
 
@@ -342,7 +340,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
   .text-center { text-align: center; }
 
-  /* ── Order detail panels (standalone cards below the table) ── */
   #detail-panels { margin-top: var(--sp-6); }
   .detail-panel {
     background: var(--c-bg);
@@ -450,7 +447,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .field-actions { display: flex; justify-content: flex-end; }
   .status-select { width: 100%; }
 
-  /* ── Status quick actions ── */
   .status-actions {
     display: flex;
     flex-wrap: wrap;
@@ -461,7 +457,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   .status-select-wrap .field-inline { justify-content: flex-start; }
   .status-select-wrap .status-select { max-width: 200px; }
 
-  /* ── Item rows with thumbnails ── */
   .item-thumb {
     width: 40px;
     height: 40px;
@@ -478,7 +473,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
     background: var(--c-bg-light);
   }
 
-  /* ── Order items list ── */
   .detail-items { margin-top: var(--sp-4); }
   .detail-items h4 {
     font-size: var(--text-sm);

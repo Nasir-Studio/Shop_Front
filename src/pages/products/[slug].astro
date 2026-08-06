@@ -5,13 +5,11 @@ import Footer from '../../components/Footer.astro';
 const API_URL = import.meta.env.PUBLIC_API_URL || 'https://shopbackend.nsir.uk';
 
 export async function getStaticPaths() {
-  // Production API as build-time fallback so CI (GitHub Pages) always
-  // generates real product pages even if the PUBLIC_API_URL secret is unset.
+  // 建置時以正式 API 作為 fallback，CI（GitHub Pages）未設定 PUBLIC_API_URL secret 時仍能產出真實商品頁。
   const apiUrl = import.meta.env.PUBLIC_API_URL || 'https://shopbackend.nsir.uk';
   const fallbackPaths = [{ params: { slug: '_placeholder' } }];
   try {
-    // API caps page_size at 48; paginate through ALL pages so every product
-    // gets a pre-built static page (avoids HTTP 404 flash on GitHub Pages)
+    // API 的 page_size 上限為 48，分頁抓取所有頁面以預建靜態頁，避免 GitHub Pages 的 404 閃現。
     const pageSize = 48;
     const paths: { params: { slug: string } }[] = [];
     let page = 1;
@@ -71,7 +69,6 @@ export async function getStaticPaths() {
       document.title = p.name + ' — 小羊農場';
 
       var images = p.images || [];
-      // Find cover or use first
       var coverIdx = -1;
       for (var idx = 0; idx < images.length; idx++) {
         if (images[idx].is_cover) { coverIdx = idx; break; }
@@ -220,7 +217,6 @@ export async function getStaticPaths() {
   .product-description h3 { font-size: var(--text-sm); font-weight: 500; margin-bottom: var(--sp-3); }
   .product-description p { font-size: var(--text-sm); color: var(--c-text-secondary); line-height: var(--leading-relaxed); }
 
-  /* ── Thumbnail Gallery ──────────────────────────────────────────── */
   .product-gallery { display: flex; flex-direction: column; gap: var(--sp-3); }
   .product-thumbnails { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
   .thumbnail-item {

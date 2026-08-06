@@ -1,7 +1,5 @@
 import type { User, CartItem } from '../types/index';
 
-// ── Client-side stores (using localStorage for persistence) ──────
-
 export function getUser(): User | null {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem('shop_user');

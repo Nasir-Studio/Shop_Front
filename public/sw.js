@@ -11,7 +11,7 @@ var STATIC_URLS = [
 var NOTIF_DB = 'shop-notif-db';
 var NOTIF_STORE = 'notifications';
 
-// IndexedDB helper for notification history (shared with pages)
+// IndexedDB：通知紀錄（頁面與 SW 共用）
 function openNotifDB() {
   return new Promise(function(resolve, reject) {
     var req = indexedDB.open(NOTIF_DB, 1);
@@ -38,7 +38,7 @@ function saveNotification(notif) {
   });
 }
 
-// Install — cache critical static assets
+// 安裝：快取關鍵靜態資源
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE).then(function(cache) {
@@ -49,7 +49,7 @@ self.addEventListener('install', function(event) {
   );
 });
 
-// Activate — clean old caches
+// 啟動：清除舊版快取
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
@@ -62,15 +62,15 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Fetch — network first, fallback to cache
+// 請求：網路優先，失敗才用快取
 self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
 
-  // Only handle GET requests to our origin
+  // 只處理本站 GET 請求
   if (event.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
 
-  // For static assets (js/css/png/svg), use cache-first
+  // 靜態資源（js/css/png/svg）快取優先
   if (/\.(js|css|png|jpg|jpeg|gif|svg|woff2?)$/i.test(url.pathname)) {
     event.respondWith(
       caches.match(event.request).then(function(cached) {
@@ -85,7 +85,7 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // For navigation requests — network first, fallback to cache
+  // 頁面導覽：網路優先，失敗才用快取
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(function() {
@@ -95,11 +95,11 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Everything else — network only
+  // 其餘一律只走網路
   event.respondWith(fetch(event.request));
 });
 
-// Push notification received — record history + show notification
+// 收到推播：寫入紀錄並顯示通知
 self.addEventListener('push', function(event) {
   var data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
@@ -113,14 +113,14 @@ self.addEventListener('push', function(event) {
   };
   event.waitUntil(
     saveNotification({ title: title, body: body, url: data.url || '/', ts: Date.now(), read: false })
-      .catch(function() { /* storage failure must not block notification */ })
+      .catch(function() { /* 儲存失敗不可阻擋通知 */ })
       .then(function() {
         return self.registration.showNotification(title, options);
       })
   );
 });
 
-// Notification clicked — open the target page
+// 點擊通知：開啟目標頁面
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   var url = (event.notification.data && event.notification.data.url) || '/';

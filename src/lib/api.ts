@@ -34,7 +34,6 @@ class ApiClient {
     return res.json();
   }
 
-  // ── Auth ──────────────────────────────────────────────────────
   async register(email: string, password: string, name: string) {
     const res = await this.request<{ access_token: string; user: User }>(
       '/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, name }) }
@@ -64,7 +63,6 @@ class ApiClient {
     localStorage.removeItem('shop_user');
   }
 
-  // ── Products ──────────────────────────────────────────────────
   async getProducts(params: { page?: number; category?: string; search?: string; sort?: string } = {}): Promise<PaginatedProducts> {
     const qs = new URLSearchParams();
     if (params.page) qs.set('page', String(params.page));
@@ -82,7 +80,6 @@ class ApiClient {
     return this.request<Product>(`/api/products/${slug}`);
   }
 
-  // ── Categories ────────────────────────────────────────────────
   async getCategories(): Promise<Category[]> {
     return this.request<Category[]>('/api/categories');
   }
@@ -91,7 +88,6 @@ class ApiClient {
     return this.request(`/api/categories/${slug}`);
   }
 
-  // ── Cart ──────────────────────────────────────────────────────
   async getCart(): Promise<Cart> {
     return this.request<Cart>('/api/cart');
   }
@@ -116,7 +112,6 @@ class ApiClient {
     return this.request<Cart>('/api/cart', { method: 'DELETE' });
   }
 
-  // ── Orders ────────────────────────────────────────────────────
   async createOrder(data: {
     shipping_name: string; shipping_phone: string; shipping_address: string; note?: string;
   }): Promise<Order> {
@@ -133,7 +128,6 @@ class ApiClient {
     return this.request<Order>(`/api/orders/${id}`);
   }
 
-  // ── Admin ─────────────────────────────────────────────────────
   async getAdminStats(): Promise<AdminStats> {
     return this.request<AdminStats>('/api/admin/stats');
   }

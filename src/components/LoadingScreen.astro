@@ -1,8 +1,8 @@
 ---
 export interface Props {
-  /** CSS selector for images to preload, e.g. ".product-card img" */
+  /** 要預載的圖片 CSS 選擇器，例如 ".product-card img" */
   preloadSelector?: string;
-  /** Extra image URLs to preload */
+  /** 額外要預載的圖片 URL */
   preloadUrls?: string[];
 }
 const { preloadSelector, preloadUrls } = Astro.props;
@@ -33,27 +33,24 @@ const { preloadSelector, preloadUrls } = Astro.props;
     if (!screen || !bar || !pctEl) return;
 
     var running = true;
-    var ready = false;    // true when page is fully loaded
-    var SIM_DURATION = 1400; // ms to reach ~90% via simulation
+    var ready = false;    // 頁面完全載入時為 true
+    var SIM_DURATION = 1400; // 模擬約 90% 所需毫秒數
     var FADE_DELAY = 300;
 
-    // Global API: pages can push image URLs to preload (background only)
+    // 全域 API：頁面可推入圖片 URL 進行背景預載
     var preloadUrls = [];
     window.__loadingPreload = function(urls) {
       urls.forEach(function(url) {
         if (url && preloadUrls.indexOf(url) === -1) preloadUrls.push(url);
       });
-      // Kick off preload immediately
       preloadUrls.forEach(function(url) {
         var img = new Image();
         img.src = url;
       });
     };
 
-    // Collect images from DOM selector
     var sel = screen.getAttribute('data-prel-sel') || '';
     if (sel) {
-      // If DOM is already ready, scan now
       function scanAndPreload() {
         document.querySelectorAll(sel).forEach(function(img) {
           var src = img.getAttribute('src') || img.getAttribute('data-src') || '';
@@ -67,13 +64,11 @@ const { preloadSelector, preloadUrls } = Astro.props;
       }
     }
 
-    // Explicit preload URLs from Astro prop
     (function() {
       var urls = screen.getAttribute('data-prel-urls') || '[]';
       try { var arr = JSON.parse(urls); arr.forEach(function(u) { if (u) { var i = new Image(); i.src = u; } }); } catch(e) {}
     })();
 
-    // Called when animation reaches 100%
     function done() {
       if (!running) return;
       running = false;
@@ -83,7 +78,6 @@ const { preloadSelector, preloadUrls } = Astro.props;
       }, FADE_DELAY);
     }
 
-    // ── Smooth ease-out animation ──
     var startTime = Date.now();
     var completed = false;
 
@@ -92,9 +86,8 @@ const { preloadSelector, preloadUrls } = Astro.props;
       var elapsed = Date.now() - startTime;
       var t = Math.min(elapsed / SIM_DURATION, 1);
 
-      // Ease-out cubic for smooth deceleration
       var eased = 1 - Math.pow(1 - t, 3);
-      // Map to 1% → 92% (leaving room for final jump)
+      // 映射到 1% → 92%，留空間給最後跳轉
       var pct = 1 + eased * 91;
       pct = Math.min(pct, 100);
 
@@ -108,9 +101,8 @@ const { preloadSelector, preloadUrls } = Astro.props;
         return;
       }
 
-      // Once simulation is near done (~92%), check if we can jump to 100
+      // 模擬接近完成（~92%）時，檢查能否直接跳 100
       if (pct >= 92 && !completed) {
-        // If page resources are loaded, finish
         if (ready) {
           bar.style.width = '100%';
           pctEl.textContent = '100%';
@@ -118,20 +110,18 @@ const { preloadSelector, preloadUrls } = Astro.props;
           done();
           return;
         }
-        // Otherwise slow-walk the remaining 8% while waiting
+        // 否則放慢補足剩餘 8%
         requestAnimationFrame(animate);
       } else {
         requestAnimationFrame(animate);
       }
     }
 
-    // Mark as ready on window load
     window.addEventListener('load', function() { ready = true; });
 
-    // Safety: force complete at 4s
+    // 保險：4 秒強制完成
     setTimeout(function() { if (running) { ready = true; } }, 4000);
 
-    // Start
     requestAnimationFrame(animate);
   })();
 </script>
